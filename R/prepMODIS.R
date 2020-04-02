@@ -1,5 +1,10 @@
 #'
 #'
+#' @import doParallel
+#'
+#' @importFrom parallel detectCores makeCluster stopCluster
+#' @importFrom foreach foreach
+#' @importFrom gdalUtils gdal_translate
 #'
 .extract_sd <- function(in_files, out_dir, band_id, band_nr, cores=NA, check_existing=T) {
 
