@@ -18,7 +18,6 @@
                       stop(paste0("Product ID: ", product_name, " not supported."))),
          stop(paste0("sd_type ", sd_type, " not supported."))
   )
-
 }
 
 #'
@@ -51,13 +50,43 @@
   # execute parallelized extraction
   message(paste0("Extracting ", band_id, " of ", length(in_files), " files to "), out_dir, " ...")
   foreach::foreach(f = 1:length(in_files), .packages = "gdalUtils") %dopar% {
-    out_file <- file.path(out_dir, paste0(strsplit(basename(in_files[f]), ".hdf")[[1]][1], ",", band_id, ".tif"))
+    out_file <- file.path(out_dir, paste0(strsplit(basename(in_files[f]), ".hdf")[[1]][1], ".", band_id, ".tif"))
     if (isTRUE(check_existing)) {
       if (!file.exists(out_file)) gdalUtils::gdal_translate(in_files[f], out_file, sd_index = band_nr)
     } else gdalUtils::gdal_translate(in_files[f], out_file, sd_index = band_nr)
   }
 
   parallel::stopCluster(c1)
+}
+
+.moasaic_tiles <- function(in_dir, out_dir, band_id, cores=NA, check.existing=T) {
+
+  # check if output directory exists, otherwise create it
+  if(!dir.exists(out_dir)) try(dir.create(out_dir))
+  message(paste0("Subdataset directory set: ", out_dir))
+
+  # get all available dates from files
+  mod_files <- list.files(in_dir, ".*M(O|Y)D.*.tif", full.names = T, no.. = T)
+  dates <- unique(do.call("c", lapply(mod_files, .getMODIS_date)))
+
+  # setup parallel processing
+  if (is.na(cores)) cores <- parallel::detectCores() - 1
+  c1 <- parallel::makeCluster(cores)
+  doParallel::registerDoParallel(c1)
+  message(paste0("Set up parallel processing on ", cores, " cores"))
+
+  message(paste0("Mosaicing ", band_id, " of ", length(mod_files), " files to "), out_dir, " ...")
+  foreach::foreach(f = 1:length(dates), .packages = "gdalUtils") %dopar% {
+    date_cur_str <- strftime(dates[f], format = '%Y%j')
+    files_currdate <- list.files(in_dir, pattern = paste0(".*M(O|Y)D.*", date_cur_str , ".*", band_id, ".tif"),
+                                 full.names = T, no.. = T)
+
+    prod_name <- strsplit(basename(files_currdate[1]), "\\.")[[1]][1]
+    out_file <- file.path(out_dir, paste0(prod_name, ".", date_cur_str, ".", band_id, ".mosaic.tif"))
+
+    mosaic_rasters(files_currdate, out_dir, of = "GTiff", verbose=TRUE)
+  }
+  stopCluster(c1)
 }
 
 #'
@@ -82,3 +111,5 @@ prepMODIS <- function(in_dir, out_dir, extract_sds=c("ndvi", "qa", "doy"), cores
 
   message("All subdatasets successfully extracted.")
 }
+
+.moasaic_tiles("C:\\Projects\\R\\Data\\SDS_Test\\NDVI", "C:\\Projects\\R\\Data\\SDS_Test\\MOSAIC", "ndvi")
