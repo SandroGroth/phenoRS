@@ -84,7 +84,7 @@
     prod_name <- strsplit(basename(files_currdate[1]), "\\.")[[1]][1]
     out_file <- file.path(out_dir, paste0(prod_name, ".", date_cur_str, ".", band_id, ".mosaic.tif"))
 
-    mosaic_rasters(files_currdate, out_dir, of = "GTiff", verbose=TRUE)
+    gdalUtils::mosaic_rasters(files_currdate, out_file, of = "GTiff", verbose=TRUE)
   }
   stopCluster(c1)
 }
