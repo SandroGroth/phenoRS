@@ -2,6 +2,7 @@
 
 ![Lifecycle:experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg) 
 [![CRAN version](https://www.r-pkg.org/badges/version/esriOpenData)](https://CRAN.R-project.org/package=esriOpenData)
+[![Build Status](https://travis-ci.org/SandroGroth/phenoRS.svg?branch=master)](https://travis-ci.org//SandroGroth/phenoRS)
 
 R package for automated phenology metrics extraction from remotely sensed data.
 
