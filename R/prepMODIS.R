@@ -1,25 +1,3 @@
-.get_sdnr <- function(product_name, sd_type) {
-  switch(sd_type,
-         qa = switch(product_name,
-                     MOD13Q1 = return(12),
-                     MYD13Q1 = return(12),
-                     stop(paste0("Product ID: ", product_name, " not supported."))),
-         ndvi = switch(product_name,
-                       MOD13Q1 = return(1),
-                       MYD13Q1 = return(1),
-                       stop(paste0("Product ID: ", product_name, " not supported."))),
-         evi = switch(product_name,
-                      MOD13Q1 = return(2),
-                      MYD13Q1 = return(2),
-                      stop(paste0("Product ID: ", product_name, " not supported."))),
-         doy = switch(product_name,
-                      MOD13Q1 = return(11),
-                      MYD13Q1 = return(11),
-                      stop(paste0("Product ID: ", product_name, " not supported."))),
-         stop(paste0("sd_type ", sd_type, " not supported."))
-  )
-}
-
 #' @import doParallel
 #'
 #' @importFrom parallel detectCores makeCluster stopCluster
