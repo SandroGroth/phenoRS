@@ -1,4 +1,64 @@
-getMODIS <- function(gSD_query, out_dir, use_aria=T, do_par=T, cores=NA) {
+#' @title Download MODIS Data
+#'
+#' @description \code{downloadMODIS} downloads MODIS Vegetation Index data queried by
+#'              \link[getSpatialData]{getMODIS_query}.
+#'
+#' @param gSD_query records data.frame. A valid query result returned by \link[getSpatialData]{getMODIS_query}.
+#' @param out_dir out_dir character. Full path to download output directory.
+#' @param use_aria optional logical. If True, aria2c is used for bulk downloading the selected images.
+#'                 Requires valid aria2 installation. For help, see \url{https://aria2.github.io/}.
+#'                 Default is \code{TRUE}
+#' @param do_par optional logical. Wheter parallel download should be applied. This parameter is ignored
+#'               when \code{use_aria == TRUE}. Default is \code{TRUE}
+#' @param cores optional integer. Number of cores used for parallel download. If \code{NA}, available
+#'              cores will be detected and used. Ignored when \code{aria2 == TRUE} or
+#'              \code{do_par == FALSE}. Default is \code{NA}.
+#'
+#' @details Selected MODIS tiles are downloaded as .hdf archives from the Level-1 and Atmosphere Archive
+#'          & Distribution System (LAADS) of NASA's Distributed Active Archive Center (DAAC) at the Goddard
+#'          Space Flight Center in Greenbelt, Maryland (\url{https://ladsweb.modaps.eosdis.nasa.gov/})
+#'
+#' @author Sandro Groth
+#'
+#' @references Jakob Schwalb-Willmann (2018). getSpatialData: Get different kinds of freely available
+#'             spatial datasets. R package version 0.0.4. \url{http://www.github.com/16eagle/getSpatialData/}
+#'
+#' @examples
+#' ## Import packages
+#' library(getSpatialData)
+#' library(sf)
+#'
+#' ## Set query parameters
+#' aoi_data <- data("aoi_data")
+#' set_aoi(aoi_data[[1]])
+#' time_range <- c("2017-01-01", "2017-12-31")
+#'
+#' ## Login to USGS
+#' \dontrun{
+#' loginUSGS("Username")
+#'
+#' ## get available products
+#' product_names <- getMODIS_names()
+#' product <- grep("MOD13Q1", product_names, value = T)
+#'
+#' ## Execute query
+#' query <- getMODIS_query(time_range = time_range, name = product)
+#'
+#' ## Download all selected tiles
+#' donwloadMODIS(query, "path/to/directory")
+#' }
+#'
+#' @import doParallel
+#'
+#' @importFrom logging loginfo logdebug
+#' @importFrom parallel detectCores makeCluster stopCluster
+#' @importFrom getSpatialData getMODIS_data
+#'
+#' @seealso \link{prepMODIS} \link[getSpatialData]{getMODIS_query}
+#'
+#' @export
+#'
+downloadMODIS <- function(gSD_query, out_dir, use_aria=T, do_par=T, cores=NA) {
 
   logging::loginfo(paste0("Starting download of product(s) '", paste0(gSD_query$displayId, collapse = "', "), "'."))
 
