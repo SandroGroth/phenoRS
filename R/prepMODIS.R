@@ -73,9 +73,48 @@
   stopCluster(c1)
 }
 
+#'
+#' @source \link[getSpatialData]{cropFAST}
+#'
+.crop <- function(in_dir, out_dir, aoi, cores=NA) {
+
+  # check if output directory exists, otherwise create it
+  if (!dir.exists(out_dir)) try(dir.create(out_dir))
+  logging::logdebug(paste0("Cropped iage directory set: ", out_dir))
+
+  # get all files in input directory
+  mod_files <- list.files(in_dir, ".*M(O|Y)D.*.tif", full.names = T, no.. = T)
+
+  # try getting extent of aoi
+  if (!inherits(aoi, "sf") && !inherits(aoi, "Extent")) stop("AOI must be of type sf or extent.")
+  ext <- try(raster::extent(aoi))
+
+  # setup parallel processing
+  if (is.na(cores)) cores <- parallel::detectCores() - 1
+  c1 <- parallel::makeCluster(cores)
+  doParallel::registerDoParallel(c1)
+  logging::logdebug(paste0("Set up parallel processing on ", cores, " cores"))
+
+  # execute parallell cropping
+  logging::logdebug("Cropping ", length(mod_files), " using specified extent to ", out_dir)
+  foreach::foreach(f = 1:length(mod_files), .packages = c("gdalUtils", "raster")) %dopar% {
+    out_file <- file.path(out_dir, paste0(strsplit(basename(mod_files[f]), ".tif")[[1]][1], ".crop.tif"))
+    temp.env <- paste0(paste0(head(strsplit(out_file, "[.]")[[1]], n = -1), collapse = "."), ".vrt")
+    catch <- gdalUtils::gdalbuildvrt(mod_files[f], temp.env, te = c(ext@xmin, ext@ymin, ext@xmax, ext@ymax))
+    x <- stack(temp.env)
+    if (!is.na(grep(".vrt", tolower(temp.env))[1])) {
+      file.rename(temp.env, out_file)
+    } else {
+      raster::writeRaster(x, ...)
+    }
+  }
+}
+
 #' @importFrom logging loginfo logdebug
 #'
-prepMODIS <- function(in_dir, out_dir, extract_sds=c("ndvi", "qa", "doy"), cores=NA, check_existing=T) {
+#' TODO: Make cropping optional
+#'
+prepMODIS <- function(in_dir, out_dir, extract_sds=c("ndvi", "qa", "doy"), aoi, cores=NA, check_existing=T) {
 
   logging::loginfo("-----------------------------------------------------------------------------------")
   logging::loginfo("Preprocessing of downloaded MODIS tiles started.")
@@ -98,6 +137,9 @@ prepMODIS <- function(in_dir, out_dir, extract_sds=c("ndvi", "qa", "doy"), cores
   mosaic_dir <- file.path(out_dir, "MOSAIC")
   if (!dir.exists(mosaic_dir)) try(dir.create(mosaic_dir))
   logging::loginfo(paste0("Mosaic data directory set: ", mosaic_dir))
+  crop_dir <- file.path(out_dir, "CROP")
+  if (!dir.exists(crop_dir)) try(dir.create(crop_dir))
+  logging::loginfo(paste0("Cropped data directory set: ", crop_dir))
 
   # loop trough sds and extract them to subdirectory
   for (i in 1:length(extract_sds)) {
@@ -111,6 +153,18 @@ prepMODIS <- function(in_dir, out_dir, extract_sds=c("ndvi", "qa", "doy"), cores
   }
 
   logging::loginfo("All subdatasets successfully extracted.")
+  logging::loginfo("-----------------------------------------------------------------------------------")
+  logging::loginfo("Step 2: Cropping data to AOI")
+
+  # loop trough sds in mosaic directory and crop all images to AOI extent
+  for (i in 1:length(extract_sds)) {
+    mosaic_sub_dir <- file.path(mosaic_dir, toupper(extract_sds[i]))
+    crop_sub_dir <- file.path(crop_dir, toupper(extract_sds[i]))
+    if (!dir.exists(crop_sub_dir)) try(dir.create(crop_sub_dir))
+    .crop(mosaic_sub_dir, crop_sub_dir, aoi, cores)
+  }
+
+  logging::loginfo("All subdatasets sucessfully cropped to AOI.")
 }
 
 #prepMODIS("C:\\Projects\\R\\Data\\hdf", "C:\\Projects\\R\\Data\\SDS_Test")
