@@ -22,16 +22,16 @@ prepMODIS <- function(in_dir, out_dir, extract_sds=c("ndvi", "qa", "doy"), aoi, 
   # Check if sub directories exists, otherwise create it
   raw_dir <- file.path(out_dir, "RAW")
   if (!dir.exists(raw_dir)) try(dir.create(raw_dir))
-  logging::loginfo(paste0("Raw data directory set: ", raw_dir))
+  logging::logdbeug(paste0("Raw data directory set: ", raw_dir))
   mosaic_dir <- file.path(out_dir, "MOSAIC")
   if (!dir.exists(mosaic_dir)) try(dir.create(mosaic_dir))
-  logging::loginfo(paste0("Mosaic data directory set: ", mosaic_dir))
+  logging::logdebug(paste0("Mosaic data directory set: ", mosaic_dir))
   crop_dir <- file.path(out_dir, "CROP")
   if (!dir.exists(crop_dir)) try(dir.create(crop_dir))
-  logging::loginfo(paste0("Cropped data directory set: ", crop_dir))
+  logging::logdebug(paste0("Cropped data directory set: ", crop_dir))
   maskaoi_dir <- file.path(out_dir, "MASK_AOI")
   if (!dir.exists(maskaoi_dir)) try(dir.create(maskaoi_dir))
-  logging::loginfo(paste0("AOI masked data directory set: ", maskaoi_dir))
+  logging::logdebug(paste0("AOI masked data directory set: ", maskaoi_dir))
 
   # loop trough sds and extract them to subdirectory
   for (i in 1:length(extract_sds)) {
