@@ -29,6 +29,9 @@ prepMODIS <- function(in_dir, out_dir, extract_sds=c("ndvi", "qa", "doy"), aoi, 
   crop_dir <- file.path(out_dir, "CROP")
   if (!dir.exists(crop_dir)) try(dir.create(crop_dir))
   logging::loginfo(paste0("Cropped data directory set: ", crop_dir))
+  maskaoi_dir <- file.path(out_dir, "MASK_AOI")
+  if (!dir.exists(maskaoi_dir)) try(dir.create(maskaoi_dir))
+  logging::loginfo(paste0("AOI masked data directory set: ", maskaoi_dir))
 
   # loop trough sds and extract them to subdirectory
   for (i in 1:length(extract_sds)) {
@@ -43,17 +46,24 @@ prepMODIS <- function(in_dir, out_dir, extract_sds=c("ndvi", "qa", "doy"), aoi, 
 
   logging::loginfo("All subdatasets successfully extracted.")
   logging::loginfo("-----------------------------------------------------------------------------------")
-  logging::loginfo("Step 2: Cropping data to AOI")
+  logging::loginfo("Step 2: Cropping and masking data to AOI")
 
-  # loop trough sds in mosaic directory and crop all images to AOI extent
+  # loop trough sds in mosaic directory
   for (i in 1:length(extract_sds)) {
     mosaic_sub_dir <- file.path(mosaic_dir, toupper(extract_sds[i]))
+
+    # Execute cropping to AOI
     crop_sub_dir <- file.path(crop_dir, toupper(extract_sds[i]))
     if (!dir.exists(crop_sub_dir)) try(dir.create(crop_sub_dir))
     .crop(mosaic_sub_dir, crop_sub_dir, aoi, cores)
+
+    # Execute masking to AOI
+    maskaoi_sub_dir <- file.path(maskaoi_dir, toupper(extract_sds[i]))
+    if (!dir.exists(maskaoi_sub_dir)) try(dir.create(maskaoi_sub_dir))
+    .mask_aoi(crop_sub_dir, aoi, maskaoi_sub_dir, cores)
   }
 
-  logging::loginfo("All subdatasets sucessfully cropped to AOI.")
+  logging::loginfo("All subdatasets sucessfully cropped and masked to AOI.")
 }
 
 #prepMODIS("C:\\Projects\\R\\Data\\hdf", "C:\\Projects\\R\\Data\\SDS_Test")
