@@ -66,13 +66,13 @@
 
   # check if output directory exists, otherwise create it
   if (!dir.exists(out_dir)) try(dir.create(out_dir))
-  logging::logdebug(paste0("Cropped iage directory set: ", out_dir))
+  logging::logdebug(paste0("Cropped image directory set: ", out_dir))
 
   # get all files in input directory
   mod_files <- list.files(in_dir, ".*M(O|Y)D.*.tif", full.names = T, no.. = T)
 
   # try getting extent of aoi
-  if (!inherits(aoi, "sf") && !inherits(aoi, "Extent")) stop("AOI must be of type sf or extent.")
+  if (!inherits(aoi, "sf")) stop("AOI must be of type sf.")
   ext <- try(raster::extent(aoi))
 
   # setup parallel processing
@@ -94,4 +94,35 @@
       raster::writeRaster(x, ...)
     }
   }
+  stopCluster(c1)
+}
+
+.mask_aoi <- function(in_dir, aoi, out_dir, cores=NA) {
+
+  # check if output directory exists, otherwise create it
+  if (!dir.exists(out_dir)) try(dir.create(out_dir))
+  logging::logdebug(paste0("Masked image directory set: ", out_dir))
+
+  # get all files that should be maskeds
+  in_files <- list.files(in_dir, pattern = ".*M(O|Y)D.*.tif", full.names = T, no.. = T)
+
+  # setup parallel processing
+  if (is.na(cores)) cores <- parallel::detectCores() - 1
+  c1 <- parallel::makeCluster(cores)
+  doParallel::registerDoParallel(c1)
+  logging::logdebug(paste0("Set up parallel processing on ", cores, " cores"))
+
+  # Convert AOI to Spatial
+  if (!inherits(aoi, "sf")) stop("AOI must be of type sf.")
+  aoi_mask <- try(sf::as_Spatial(aoi))
+
+  # Execute parallel masking
+  logging::logdebug(paste0("Masking ", length(in_files), " using specified AOI to ", out_dir))
+  foreach::foreach(f = 1:length(in_files), .packages = c("raster", "reproducible")) %dopar% {
+    in_rast <- raster::raster(in_files[f])
+    out_file <- file.path(out_dir, paste0(strsplit(basename(in_files[f]), ".tif")[[1]][1], ".maskaoi.tif"))
+    masked_rast <- reproducible::fastMask(in_rast, aoi_mask)
+    raster::writeRaster(masked_rast, out_file, "GTiff")
+  }
+  stopCluster(c1)
 }
