@@ -1,69 +1,137 @@
-#' @importFrom logging loginfo logdebug
-#'
-#' TODO: Make cropping optional
-#' TODO: new param keep_raw to optionally delete all processing steps
-#'
-prepMODIS <- function(in_dir, out_dir, extract_sds=c("ndvi", "qa", "doy"), aoi, cores=NA, check_existing=T) {
+prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
-  logging::loginfo("-----------------------------------------------------------------------------------")
-  logging::loginfo("Preprocessing of downloaded MODIS tiles started.")
-
-  # Check if output directory exists, otherwise create it
-  if (!dir.exists(out_dir)) try(dir.create(out_dir))
-  logging::loginfo((paste0("Output directory set: ", out_dir)))
-
-  # check if all specified sds can be extracted
-  supported_sds <- c("ndvi", "evi", "doy", "qa")
-  if (!all(extract_sds %in% supported_sds)) stop(paste0("Only following sds supported: ", supported_sds))
-
-  logging::loginfo("-----------------------------------------------------------------------------------")
-  logging::loginfo("Step 1: Extracting data")
-
-  # Check if sub directories exists, otherwise create it
-  raw_dir <- file.path(out_dir, "RAW")
-  if (!dir.exists(raw_dir)) try(dir.create(raw_dir))
-  logging::logdbeug(paste0("Raw data directory set: ", raw_dir))
-  mosaic_dir <- file.path(out_dir, "MOSAIC")
-  if (!dir.exists(mosaic_dir)) try(dir.create(mosaic_dir))
-  logging::logdebug(paste0("Mosaic data directory set: ", mosaic_dir))
-  crop_dir <- file.path(out_dir, "CROP")
-  if (!dir.exists(crop_dir)) try(dir.create(crop_dir))
-  logging::logdebug(paste0("Cropped data directory set: ", crop_dir))
-  maskaoi_dir <- file.path(out_dir, "MASK_AOI")
-  if (!dir.exists(maskaoi_dir)) try(dir.create(maskaoi_dir))
-  logging::logdebug(paste0("AOI masked data directory set: ", maskaoi_dir))
-
-  # loop trough sds and extract them to subdirectory
-  for (i in 1:length(extract_sds)) {
-    raw_sub_dir <- file.path(raw_dir, toupper(extract_sds[i]))
-    if (!dir.exists(raw_sub_dir)) try(dir.create(raw_sub_dir))
-    .extract_sd(in_dir, raw_sub_dir, extract_sds[i], cores, check_existing)
-
-    mosaic_sub_dir <- file.path(mosaic_dir, toupper(extract_sds[i]))
-    if (!dir.exists(mosaic_sub_dir)) try(dir.create(mosaic_sub_dir))
-    .mosaic_tiles(raw_sub_dir, mosaic_sub_dir, extract_sds[i], cores, check_existing)
+  # check if input parameters are valied on the first look
+  valid_VIs <- c('NDVI', 'EVI')
+  if (!(all(vi %in% valid_VIs))) stop("Specified vi is not supported.")
+  if (!dir.exists(in_dir)) stop("Input directory not found.")
+  if (!inherits(aoi, 'sf')) stop("AOI must be of type sf.")
+  if (!is.na(out_proj)) {
+    if (!(any(grepl('EPSG:', out_proj)) | any(grepl('+proj=', out_proj)) | any(grepl('.prf', out_proj)))) {
+      stop("Output Projection is not valid.")
+    }
   }
 
-  logging::loginfo("All subdatasets successfully extracted.")
-  logging::loginfo("-----------------------------------------------------------------------------------")
-  logging::loginfo("Step 2: Cropping and masking data to AOI")
+  # setup data structure:
+  # out_dir
+  # |- [NDVI]
+  # |- [EVI]
+  # |- QA
+  # |- DOY
+  dir.create(out_dir)
+  if ('NDVI' %in% vi) {
+    ndvi_dir <- file.path(out_dir, 'NDVI')
+    dir.create(ndvi_dir)
+  }
+  if ('EVI' %in% vi) {
+    evi_dir <- file.path(out_dir, 'EVI')
+    dir.create(evi_dir)
+  }
+  qa_dir <- file.path(out_dir, 'QA')
+  doy_dir <- file.path(out_dir, 'DOY')
+  dir.create(qa_dir)
+  dir.create(doy_dir)
 
-  # loop trough sds in mosaic directory
-  for (i in 1:length(extract_sds)) {
-    mosaic_sub_dir <- file.path(mosaic_dir, toupper(extract_sds[i]))
+  # Get all subdataset names that should be processed based on the created directories
+  sds <- list.dirs(out_dir, full.names = FALSE, recursive = FALSE)
 
-    # Execute cropping to AOI
-    crop_sub_dir <- file.path(crop_dir, toupper(extract_sds[i]))
-    if (!dir.exists(crop_sub_dir)) try(dir.create(crop_sub_dir))
-    .crop(mosaic_sub_dir, crop_sub_dir, aoi, cores)
+  # set up parallel processing based on number of available or specified cores
+  if (is.na(cores)) cores <- parallel::detectCores() -1
+  par_cluster <- parallel::makeCluster(cores)
+  doParallel::registerDoParallel(par_cluster)
 
-    # Execute masking to AOI
-    maskaoi_sub_dir <- file.path(maskaoi_dir, toupper(extract_sds[i]))
-    if (!dir.exists(maskaoi_sub_dir)) try(dir.create(maskaoi_sub_dir))
-    .mask_aoi(crop_sub_dir, aoi, maskaoi_sub_dir, cores)
+  # list all hdf files in in_dir and make sure they are MODIS
+  hdf_files <- list.files(in_dir, pattern = ".*M(O|Y)D.*.hdf", full.names = TRUE, no.. = TRUE)
+  if(length(hdf_files) < 1) stop("No MODIS .hdf files found in input directory.")
+
+  # save aoi to a tempfile for later AOI masking using gdalwarp
+  temp_aoi <- file.path(tempdir(), "aoi_mask.shp")
+  sf::st_write(aoi, temp_aoi, overwrite = TRUE, delete_dsn = TRUE)
+
+  # Loop trough all sds and execute preprocessing steps
+  for (i in 1:length(sds)) {
+    sd <- sds[i]
+    sd_out_dir <- file.path(out_dir, sd)
+    sd_idx <- .get_sd_idx(hdf_files[1], sd)
+    # TODO: Check necessary -ot flag for each sd
+
+    # ---- SDS Extraction ----
+
+    foreach::foreach(f = 1:length(hdf_files), .packages = "gdalUtils") %dopar% {
+      out_file <- file.path(sd_out_dir, paste0(strsplit(basename(hdf_files[f]), ".hdf")[[1]][1], "_", sd, ".tif"))
+      gdalUtils::gdal_translate(hdf_files[f], out_file, sd_index = sd_idx, of = 'GTiff', ot = "int16")
+    }
+
+    # ---- Tile Mosaicing ----
+    # TODO: Skip Mosaicing when only one tile is found -> get_unique_tiles()
+
+    img_files <- list.files(sd_out_dir, paste0(".*M(O|Y)D.*_", sd, ".tif"), full.names = TRUE, no.. = TRUE)
+    dates <- unique(do.call("c", lapply(img_files, .getMODIS_date)))
+
+    foreach::foreach(f = 1:length(dates), .packages = "gdalUtils") %dopar% {
+      date_curr_str <- strftime(dates[f], format = '%Y%j')
+      date_curr_files <- img_files[grepl(paste0("\\.A", date_curr_str, "\\."), img_files)]
+      product_name <- strsplit(basename(date_curr_files[1]), "\\.")[[1]][1]
+      out_file <- file.path(sd_out_dir, paste0(product_name, ".", date_curr_str, "_", sd, "_", "mosaic.tif"))
+      gdalUtils::mosaic_rasters(date_curr_files, out_file, of = 'GTiff', ot = 'Int16')
+    }
+
+    # cleanup
+    do.call(file.remove, list(list.files(sd_out_dir, paste0(".*M(O|Y)D.*_", sd, ".tif"), full.names = TRUE, no.. = TRUE)))
+
+    # ---- Image Reprojection ----
+
+    if (!is.na(out_proj)) {
+      img_files <- list.files(sd_out_dir, paste0('.*M(O|Y)D.*_', sd, '_mosaic.tif'), full.names = TRUE, no.. = TRUE)
+
+      foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils') %dopar% {
+        out_file <- file.path(sd_out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_", sd, "_proj.tif"))
+        gdalUtils::gdalwarp(img_files[f], out_file, t_srs = out_proj, of = 'GTiff')
+      }
+
+      # cleanup
+      do.call(file.remove, list(list.files(sd_out_dir, paste0(".*M(O|Y)D.*", "_mosaic.tif"), full.names = TRUE, no.. = TRUE)))
+    }
+
+    # ---- AOI Cropping ----
+
+    if (!is.na(out_proj)) {
+      img_files <- list.files(sd_out_dir, paste0('.*M(O|Y)D.*_', sd, '_proj.tif'), full.names = TRUE, no.. = TRUE)
+    } else {
+      img_files <- list.files(sd_out_dir, paste0('.*M(O|Y)D.*_', sd, '_mosaic.tif'), full.names = TRUE, no.. = TRUE)
+    }
+    aoi_ext <- try(raster::extent(aoi))
+    if (class(aoi_ext) == 'try-error') stop(paste0("Unable to retrieve extent from aoi: ", as.character(aoi_ext[1])))
+
+    foreach::foreach(f = 1:length(img_files), .packages = c('gdalUtils', 'raster')) %dopar% {
+      out_file <- file.path(sd_out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_", sd, "_crop.tif"))
+      temp_env <- tempfile(fileext = ".vrt")
+      catch <- gdalUtils::gdalbuildvrt(img_files[f], temp_env, te = c(aoi_ext@xmin, aoi_ext@ymin, aoi_ext@xmax, aoi_ext@ymax))
+      x <- raster::stack(temp_env)
+      raster::writeRaster(x, out_file, format = 'GTiff')
+    }
+
+    # cleanup
+    if (!is.na(out_proj)) {
+      do.call(file.remove, list(list.files(sd_out_dir, paste0(".*M(O|Y)D.*", "_proj.tif"), full.names = TRUE, no.. = TRUE)))
+    } else {
+      do.call(file.remove, list(list.files(sd_out_dir, paste0(".*M(O|Y)D.*", "_mosaic.tif"), full.names = TRUE, no.. = TRUE)))
+    }
+
+    # ---- AOI Masking ----
+
+    img_files <- list.files(sd_out_dir, paste0('.*M(O|Y)D.*_', sd, '_crop.tif'), full.names = TRUE, no.. = TRUE)
+
+    foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils') %dopar% {
+      out_file <- file.path(sd_out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_", sd, "_mask.tif"))
+      gdalUtils::gdalwarp(img_files[f], out_file, cutline = temp_aoi, of = 'GTiff')
+    }
+
+    # cleanup
+    do.call(file.remove, list(list.files(sd_out_dir, paste0(".*M(O|Y)D.*", "_crop.tif"), full.names = TRUE, no.. = TRUE)))
   }
 
-  logging::loginfo("All subdatasets sucessfully cropped and masked to AOI.")
+  # stop the multicore processing cluster
+  parallel::stopCluster(par_cluster)
 }
 
-#prepMODIS("C:\\Projects\\R\\Data\\hdf", "C:\\Projects\\R\\Data\\SDS_Test")
+#prepMODIS(hdf_dir, prep_dir, aoi, c('NDVI', 'EVI'), out_proj = "EPSG:32632")
