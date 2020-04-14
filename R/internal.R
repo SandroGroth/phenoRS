@@ -27,7 +27,7 @@
       if (!is.na(idx)) return(idx) else stop("No EVI subdataset found.")
     },
     QA = {
-      idx <- grep('.*Quality', sds_list, value=FALSE)[1]
+      idx <- grep('.*pixel reliability', sds_list, value=FALSE)[1]
       if (!is.na(idx)) return(idx) else stop("No QA subdataset found.")
     },
     DOY = {
