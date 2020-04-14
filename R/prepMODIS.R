@@ -45,21 +45,24 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
   # save aoi to a tempfile for later AOI masking using gdalwarp
   temp_aoi <- file.path(tempdir(), "aoi_mask.shp")
-  sf::st_write(aoi, temp_aoi, overwrite = TRUE, delete_dsn = TRUE)
+  sf::st_write(aoi, temp_aoi, overwrite = TRUE, delete_dsn = TRUE, quiet = TRUE)
 
   # Loop trough all sds and execute preprocessing steps
   for (i in 1:length(sds)) {
     sd <- sds[i]
     sd_out_dir <- file.path(out_dir, sd)
     sd_idx <- .get_sd_idx(hdf_files[1], sd)
-    # TODO: Check necessary -ot flag for each sd
+    #if (sd == 'QA') out_ot <- 'Byte' else
+    out_ot <- 'Int16'
 
     # ---- SDS Extraction ----
-
+    pb <- txtProgressBar(min = 1, max = length(hdf_files), style = 3)
     foreach::foreach(f = 1:length(hdf_files), .packages = "gdalUtils") %dopar% {
       out_file <- file.path(sd_out_dir, paste0(strsplit(basename(hdf_files[f]), ".hdf")[[1]][1], "_", sd, ".tif"))
-      gdalUtils::gdal_translate(hdf_files[f], out_file, sd_index = sd_idx, of = 'GTiff', ot = "int16")
+      gdalUtils::gdal_translate(hdf_files[f], out_file, sd_index = sd_idx, of = 'GTiff', ot = out_ot)
+      setTxtProgressBar(pb, f)
     }
+    close(pb)
 
     # ---- Tile Mosaicing ----
     # TODO: Skip Mosaicing when only one tile is found -> get_unique_tiles()
@@ -67,12 +70,13 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     img_files <- list.files(sd_out_dir, paste0(".*M(O|Y)D.*_", sd, ".tif"), full.names = TRUE, no.. = TRUE)
     dates <- unique(do.call("c", lapply(img_files, .getMODIS_date)))
 
+
     foreach::foreach(f = 1:length(dates), .packages = "gdalUtils") %dopar% {
       date_curr_str <- strftime(dates[f], format = '%Y%j')
       date_curr_files <- img_files[grepl(paste0("\\.A", date_curr_str, "\\."), img_files)]
       product_name <- strsplit(basename(date_curr_files[1]), "\\.")[[1]][1]
       out_file <- file.path(sd_out_dir, paste0(product_name, ".", date_curr_str, "_", sd, "_", "mosaic.tif"))
-      gdalUtils::mosaic_rasters(date_curr_files, out_file, of = 'GTiff', ot = 'Int16')
+      gdalUtils::mosaic_rasters(date_curr_files, out_file, of = 'GTiff', ot = out_ot)
     }
 
     # cleanup
@@ -130,8 +134,41 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     do.call(file.remove, list(list.files(sd_out_dir, paste0(".*M(O|Y)D.*", "_crop.tif"), full.names = TRUE, no.. = TRUE)))
   }
 
+  # ---- Pixel Reliability Masking ----
+
+  qa_files <- list.files(qa_dir, pattern = '.*M(O|Y)D.*_QA_mask.tif', full.names = TRUE, no.. = TRUE)
+
+  # loop trough all extracted VIs an DOY
+  ds <- c(vi, "DOY")
+  for (i in 1:length(ds)) {
+    print(paste0('.*M(O|Y)D.*_', ds[i], '_mask.tif'))
+    img_files <- list.files(file.path(out_dir, ds[i]), pattern=paste0('.*M(O|Y)D.*_', ds[i], '_mask.tif'),
+                            full.names = TRUE, no.. = TRUE)
+    print(img_files)
+
+    foreach::foreach(f = 1:length(qa_files), .packages = 'raster') %dopar% {
+      out_file <- file.path(out_dir, ds[i], paste0(strsplit(basename(qa_files[f]), "_")[[1]][1], "_", ds[i], "_qmask.tif"))
+      img <- grep(strsplit(basename(qa_files[f]), '_')[[1]][1], img_files, value = TRUE)[1]
+      r <- raster::raster(img)
+      qa <- raster::raster(qa_files[f])
+
+      # all pixels with QA flag 2 = Snow/Ice and 3 = Cloudy will be set to NA
+      r[qa == 2] <- raster::NAvalue(r)
+      r[qa == 3] <- raster::NAvalue(r)
+
+      raster::writeRaster(r, out_file, format = 'GTiff')
+    }
+
+    # cleanup
+    do.call(file.remove, list(list.files(file.path(out_dir, ds[i]), paste0(".*M(O|Y)D.*", "_mask.tif"),
+                                         full.names = TRUE, no.. = TRUE)))
+  }
+
+
+
   # stop the multicore processing cluster
   parallel::stopCluster(par_cluster)
 }
 
 #prepMODIS(hdf_dir, prep_dir, aoi, c('NDVI', 'EVI'), out_proj = "EPSG:32632")
+prepMODIS(hdf_dir, "C:\\Projects\\R\\Data\\PREP1", aoi, c('NDVI', 'EVI'), out_proj = "EPSG:32632")
