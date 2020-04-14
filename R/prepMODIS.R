@@ -141,10 +141,9 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   # loop trough all extracted VIs an DOY
   ds <- c(vi, "DOY")
   for (i in 1:length(ds)) {
-    print(paste0('.*M(O|Y)D.*_', ds[i], '_mask.tif'))
+
     img_files <- list.files(file.path(out_dir, ds[i]), pattern=paste0('.*M(O|Y)D.*_', ds[i], '_mask.tif'),
                             full.names = TRUE, no.. = TRUE)
-    print(img_files)
 
     foreach::foreach(f = 1:length(qa_files), .packages = 'raster') %dopar% {
       out_file <- file.path(out_dir, ds[i], paste0(strsplit(basename(qa_files[f]), "_")[[1]][1], "_", ds[i], "_qmask.tif"))
@@ -164,11 +163,29 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
                                          full.names = TRUE, no.. = TRUE)))
   }
 
+  # ---- VI Rescaling ----
 
+  # loop through all extracted VIs
+  for (i in 1:length(vi)) {
+
+    img_files <- list.files(file.path(out_dir, vi[i]), pattern=paste0('.*M(O|Y)D.*_', vi[i], '_qmask.tif'),
+                            full.names = TRUE, no.. = TRUE)
+
+    foreach::foreach(f = 1:length(img_files), .packages = 'raster') %dopar% {
+      out_file <- file.path(out_dir, vi[i], paste0(strsplit(basename(qa_files[f]), "_")[[1]][1], "_", ds[i], "_prep.tif"))
+      r <- raster::raster(img_files[f])
+      values(r) <- values(r) * 0.0001
+      raster::writeRaster(r, out_file, format = 'GTiff')
+    }
+
+    # cleanup
+    do.call(file.remove, list(list.files(file.path(out_dir, vi[i]), paste0(".*M(O|Y)D.*", "_qmask.tif"),
+                                         full.names = TRUE, no.. = TRUE)))
+  }
 
   # stop the multicore processing cluster
   parallel::stopCluster(par_cluster)
 }
 
 #prepMODIS(hdf_dir, prep_dir, aoi, c('NDVI', 'EVI'), out_proj = "EPSG:32632")
-prepMODIS(hdf_dir, "C:\\Projects\\R\\Data\\PREP1", aoi, c('NDVI', 'EVI'), out_proj = "EPSG:32632")
+#prepMODIS(hdf_dir, "C:\\Projects\\R\\Data\\PREP1", aoi, c('NDVI', 'EVI'), out_proj = "EPSG:32632")
