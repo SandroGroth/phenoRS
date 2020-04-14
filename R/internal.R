@@ -14,6 +14,14 @@
   return(c(h, v))
 }
 
+.getMODIS_tilestr <- function(file, pos1=18, pos2=23) {
+  return(substr(basename(file), pos1, pos2))
+}
+
+.get_unique_tilestr <- function(files, pos1=18, pos2=23) {
+  return(unique(unlist(lapply(files, .getMODIS_tilestr, pos1 = pos1, pos2 = pos2))))
+}
+
 .get_sd_idx <- function(hdf_file, sd_type) {
   if(!file.exists(hdf_file)) stop("File not found.")
   sds_list <- gdalUtils::get_subdatasets(hdf_file)

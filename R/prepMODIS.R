@@ -67,18 +67,27 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     }
 
     # ---- Tile Mosaicing ----
-    # TODO: Skip Mosaicing when only one tile is found -> get_unique_tiles()
 
     img_files <- list.files(sd_out_dir, paste0(".*M(O|Y)D.*_", sd, ".tif"), full.names = TRUE, no.. = TRUE)
-    dates <- unique(do.call("c", lapply(img_files, .getMODIS_date)))
+    if (length(.get_unique_tilestr(img_files)) > 1) {
+      dates <- unique(do.call("c", lapply(img_files, .getMODIS_date)))
 
-    logging::logdebug("Mosaicing MODIS tiles...")
-    foreach::foreach(f = 1:length(dates), .packages = "gdalUtils") %dopar% {
-      date_curr_str <- strftime(dates[f], format = '%Y%j')
-      date_curr_files <- img_files[grepl(paste0("\\.A", date_curr_str, "\\."), img_files)]
-      product_name <- strsplit(basename(date_curr_files[1]), "\\.")[[1]][1]
-      out_file <- file.path(sd_out_dir, paste0(product_name, ".", date_curr_str, "_", sd, "_", "mosaic.tif"))
-      gdalUtils::mosaic_rasters(date_curr_files, out_file, of = 'GTiff', ot = out_ot)
+      logging::logdebug("Mosaicing MODIS tiles...")
+      foreach::foreach(f = 1:length(dates), .packages = "gdalUtils") %dopar% {
+        date_curr_str <- strftime(dates[f], format = '%Y%j')
+        date_curr_files <- img_files[grepl(paste0("\\.A", date_curr_str, "\\."), img_files)]
+        product_name <- strsplit(basename(date_curr_files[1]), "\\.")[[1]][1]
+        out_file <- file.path(sd_out_dir, paste0(product_name, ".", date_curr_str, "_", sd, "_", "mosaic.tif"))
+        gdalUtils::mosaic_rasters(date_curr_files, out_file, of = 'GTiff', ot = out_ot)
+      }
+    } else { # just rename to pretend mosaicing was done
+      logging::logdebug("Skipping mosaicing since only one unique tile found.")
+      for (j in 1:length(img_files)) {
+        product_name <- strsplit(basename(img_files[j]), '\\.')[[1]][1]
+        date_str <- .getMODIS_datestr(.getMODIS_date(basename(img_files[j])))
+        out_file <- file.path(sd_out_dir, paste0(product_name, ".", date_str, "_", sd, "_", "mosaic.tif"))
+        file.rename(from = img_files[j], to = out_file)
+      }
     }
 
     # cleanup
@@ -197,4 +206,3 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 }
 
 #prepMODIS(hdf_dir, prep_dir, aoi, c('NDVI', 'EVI'), out_proj = "EPSG:32632")
-#prepMODIS(hdf_dir, "C:\\Projects\\R\\Data\\PREP1", aoi, c('NDVI', 'EVI'), out_proj = "EPSG:32632")
