@@ -11,6 +11,8 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     }
   }
 
+  logging::loginfo("Starting preprocessing...")
+
   # setup data structure:
   # out_dir
   # |- [NDVI]
@@ -30,6 +32,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   doy_dir <- file.path(out_dir, 'DOY')
   dir.create(qa_dir)
   dir.create(doy_dir)
+  logging::loginfo(paste0("Output directory set: ", out_dir))
 
   # Get all subdataset names that should be processed based on the created directories
   sds <- list.dirs(out_dir, full.names = FALSE, recursive = FALSE)
@@ -38,6 +41,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   if (is.na(cores)) cores <- parallel::detectCores() -1
   par_cluster <- parallel::makeCluster(cores)
   doParallel::registerDoParallel(par_cluster)
+  logging::loginfo(paste0("Parallel processing initialized on ", cores, " cores"))
 
   # list all hdf files in in_dir and make sure they are MODIS
   hdf_files <- list.files(in_dir, pattern = ".*M(O|Y)D.*.hdf", full.names = TRUE, no.. = TRUE)
@@ -52,17 +56,15 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     sd <- sds[i]
     sd_out_dir <- file.path(out_dir, sd)
     sd_idx <- .get_sd_idx(hdf_files[1], sd)
-    #if (sd == 'QA') out_ot <- 'Byte' else
     out_ot <- 'Int16'
+    logging::loginfo(paste0("Starting processing of subdataset ", i, " of ", length(sds), ": ", sd))
 
     # ---- SDS Extraction ----
-    pb <- txtProgressBar(min = 1, max = length(hdf_files), style = 3)
+    logging::logdebug("Extracting subdataset from .hdf archives...")
     foreach::foreach(f = 1:length(hdf_files), .packages = "gdalUtils") %dopar% {
       out_file <- file.path(sd_out_dir, paste0(strsplit(basename(hdf_files[f]), ".hdf")[[1]][1], "_", sd, ".tif"))
       gdalUtils::gdal_translate(hdf_files[f], out_file, sd_index = sd_idx, of = 'GTiff', ot = out_ot)
-      setTxtProgressBar(pb, f)
     }
-    close(pb)
 
     # ---- Tile Mosaicing ----
     # TODO: Skip Mosaicing when only one tile is found -> get_unique_tiles()
@@ -70,7 +72,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     img_files <- list.files(sd_out_dir, paste0(".*M(O|Y)D.*_", sd, ".tif"), full.names = TRUE, no.. = TRUE)
     dates <- unique(do.call("c", lapply(img_files, .getMODIS_date)))
 
-
+    logging::logdebug("Mosaicing MODIS tiles...")
     foreach::foreach(f = 1:length(dates), .packages = "gdalUtils") %dopar% {
       date_curr_str <- strftime(dates[f], format = '%Y%j')
       date_curr_files <- img_files[grepl(paste0("\\.A", date_curr_str, "\\."), img_files)]
@@ -87,6 +89,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     if (!is.na(out_proj)) {
       img_files <- list.files(sd_out_dir, paste0('.*M(O|Y)D.*_', sd, '_mosaic.tif'), full.names = TRUE, no.. = TRUE)
 
+      logging::logdebug(paste0("Reprojecting images to: ", out_proj))
       foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils') %dopar% {
         out_file <- file.path(sd_out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_", sd, "_proj.tif"))
         gdalUtils::gdalwarp(img_files[f], out_file, t_srs = out_proj, of = 'GTiff')
@@ -106,6 +109,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     aoi_ext <- try(raster::extent(aoi))
     if (class(aoi_ext) == 'try-error') stop(paste0("Unable to retrieve extent from aoi: ", as.character(aoi_ext[1])))
 
+    logging::logdebug("Cropping images to AOI...")
     foreach::foreach(f = 1:length(img_files), .packages = c('gdalUtils', 'raster')) %dopar% {
       out_file <- file.path(sd_out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_", sd, "_crop.tif"))
       temp_env <- tempfile(fileext = ".vrt")
@@ -125,6 +129,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
     img_files <- list.files(sd_out_dir, paste0('.*M(O|Y)D.*_', sd, '_crop.tif'), full.names = TRUE, no.. = TRUE)
 
+    logging::logdebug("Masking images to AOI...")
     foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils') %dopar% {
       out_file <- file.path(sd_out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_", sd, "_mask.tif"))
       gdalUtils::gdalwarp(img_files[f], out_file, cutline = temp_aoi, of = 'GTiff')
@@ -136,15 +141,16 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
   # ---- Pixel Reliability Masking ----
 
+  logging::loginfo("Starting Layer corrections...")
   qa_files <- list.files(qa_dir, pattern = '.*M(O|Y)D.*_QA_mask.tif', full.names = TRUE, no.. = TRUE)
 
   # loop trough all extracted VIs an DOY
   ds <- c(vi, "DOY")
   for (i in 1:length(ds)) {
-
     img_files <- list.files(file.path(out_dir, ds[i]), pattern=paste0('.*M(O|Y)D.*_', ds[i], '_mask.tif'),
                             full.names = TRUE, no.. = TRUE)
 
+    logging::logdebug(paste0("Masking images based on pixel reliability for ", ds[i], "..."))
     foreach::foreach(f = 1:length(qa_files), .packages = 'raster') %dopar% {
       out_file <- file.path(out_dir, ds[i], paste0(strsplit(basename(qa_files[f]), "_")[[1]][1], "_", ds[i], "_qmask.tif"))
       img <- grep(strsplit(basename(qa_files[f]), '_')[[1]][1], img_files, value = TRUE)[1]
@@ -170,7 +176,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
     img_files <- list.files(file.path(out_dir, vi[i]), pattern=paste0('.*M(O|Y)D.*_', vi[i], '_qmask.tif'),
                             full.names = TRUE, no.. = TRUE)
-
+    logging::logdebug(paste0("Rescaling VI for: ", vi[i]))
     foreach::foreach(f = 1:length(img_files), .packages = 'raster') %dopar% {
       out_file <- file.path(out_dir, vi[i], paste0(strsplit(basename(qa_files[f]), "_")[[1]][1], "_", ds[i], "_prep.tif"))
       r <- raster::raster(img_files[f])
@@ -185,6 +191,9 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
   # stop the multicore processing cluster
   parallel::stopCluster(par_cluster)
+  logging::loginfo("Parallel processing cluster stopped.")
+
+  logging::loginfo("Preprocessing successful.")
 }
 
 #prepMODIS(hdf_dir, prep_dir, aoi, c('NDVI', 'EVI'), out_proj = "EPSG:32632")
