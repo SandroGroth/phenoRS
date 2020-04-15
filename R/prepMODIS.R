@@ -42,6 +42,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   par_cluster <- parallel::makeCluster(cores)
   doParallel::registerDoParallel(par_cluster)
   logging::loginfo(paste0("Parallel processing initialized on ", cores, " cores"))
+  logging::loginfo("---------------------------------------------------------------------------------------------")
 
   # list all hdf files in in_dir and make sure they are MODIS
   hdf_files <- list.files(in_dir, pattern = ".*M(O|Y)D.*.hdf", full.names = TRUE, no.. = TRUE)
@@ -57,7 +58,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     sd_out_dir <- file.path(out_dir, sd)
     sd_idx <- .get_sd_idx(hdf_files[1], sd)
     out_ot <- 'Int16'
-    logging::loginfo(paste0("Starting processing of subdataset ", i, " of ", length(sds), ": ", sd))
+    logging::loginfo(paste0("Processing subdataset ", i, " of ", length(sds), ": ", sd))
 
     # ---- SDS Extraction ----
     logging::logdebug("Extracting subdataset from .hdf archives...")
@@ -140,7 +141,11 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
     logging::logdebug("Masking images to AOI...")
     foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils') %dopar% {
-      out_file <- file.path(sd_out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_", sd, "_mask.tif"))
+      if (sd == 'QA') {
+        out_file <- file.path(sd_out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_", sd, "_prep.tif"))
+      } else {
+        out_file <- file.path(sd_out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_", sd, "_mask.tif"))
+      }
       gdalUtils::gdalwarp(img_files[f], out_file, cutline = temp_aoi, of = 'GTiff')
     }
 
@@ -150,8 +155,9 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
   # ---- Pixel Reliability Masking ----
 
+  logging::loginfo("---------------------------------------------------------------------------------------------")
   logging::loginfo("Starting Layer corrections...")
-  qa_files <- list.files(qa_dir, pattern = '.*M(O|Y)D.*_QA_mask.tif', full.names = TRUE, no.. = TRUE)
+  qa_files <- list.files(qa_dir, pattern = '.*M(O|Y)D.*_QA_prep.tif', full.names = TRUE, no.. = TRUE)
 
   # loop trough all extracted VIs an DOY
   ds <- c(vi, "DOY")
@@ -161,7 +167,11 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
     logging::logdebug(paste0("Masking images based on pixel reliability for ", ds[i], "..."))
     foreach::foreach(f = 1:length(qa_files), .packages = 'raster') %dopar% {
-      out_file <- file.path(out_dir, ds[i], paste0(strsplit(basename(qa_files[f]), "_")[[1]][1], "_", ds[i], "_qmask.tif"))
+      if (ds[i] == 'DOY') {
+        out_file <- file.path(out_dir, ds[i], paste0(strsplit(basename(qa_files[f]), "_")[[1]][1], "_", ds[i], "_prep.tif"))
+      } else {
+        out_file <- file.path(out_dir, ds[i], paste0(strsplit(basename(qa_files[f]), "_")[[1]][1], "_", ds[i], "_qmask.tif"))
+      }
       img <- grep(strsplit(basename(qa_files[f]), '_')[[1]][1], img_files, value = TRUE)[1]
       r <- raster::raster(img)
       qa <- raster::raster(qa_files[f])
@@ -200,6 +210,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
   # stop the multicore processing cluster
   parallel::stopCluster(par_cluster)
+  logging::loginfo("---------------------------------------------------------------------------------------------")
   logging::loginfo("Parallel processing cluster stopped.")
 
   logging::loginfo("Preprocessing successful.")
