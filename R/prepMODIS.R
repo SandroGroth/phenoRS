@@ -34,7 +34,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   par_cluster <- parallel::makeCluster(cores)
   doParallel::registerDoParallel(par_cluster)
   logging::loginfo(paste0("Parallel processing initialized on ", cores, " cores"))
-  logging::loginfo("---------------------------------------------------------------------------------------------")
+  logging::loginfo("--------------------------------------------------------------")
 
   # list all hdf files in in_dir and make sure they are MODIS
   hdf_files <- list.files(in_dir, pattern = ".*M(O|Y)D.*.hdf", full.names = TRUE, no.. = TRUE)
@@ -83,17 +83,15 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     foreach::foreach(f = 1:length(dates), .packages = "gdalUtils") %dopar% {
       date_curr_str <- strftime(dates[f], format = '%Y%j')
       date_curr_files <- img_files[grepl(paste0("\\.A", date_curr_str, "\\."), img_files)]
-      product_name <- strsplit(basename(date_curr_files[1]), "\\.")[[1]][1]
-      out_file <- file.path(out_dir, paste0(product_name, ".", date_curr_str, "_mosaic.tif"))
+      out_file <- file.path(out_dir, paste0(date_curr_str, "_mosaic.tif"))
       gdalUtils::mosaic_rasters(date_curr_files, out_file, of = 'GTiff', ot = 'UInt16')
     }
   } else {
     # just rename to pretend mosaicing was done
     logging::loginfo("Skipped mosaicing since only one unique tile found.")
     for (i in 1:length(img_files)) {
-      product_name <- strsplit(basename(img_files[i]), '\\.')[[1]][1]
       date_str <- .getMODIS_datestr(.getMODIS_date(basename(img_files[i])))
-      out_file <- file.path(out_dir, paste0(product_name, ".", date_str, "_mosaic.tif"))
+      out_file <- file.path(out_dir, paste0(date_str, "_mosaic.tif"))
       file.rename(from = img_files[i], to = out_file)
     }
   }
@@ -104,7 +102,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   # ---- Image Reprojection ----
 
   if (!is.na(out_proj)) {
-    img_files <- list.files(out_dir, paste0('.*M(O|Y)D.*_mosaic.tif'), full.names = TRUE, no.. = TRUE)
+    img_files <- list.files(out_dir, paste0('_mosaic.tif'), full.names = TRUE, no.. = TRUE)
 
     logging::loginfo(paste0("Reprojecting images to: ", out_proj))
     foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils') %dopar% {
@@ -113,7 +111,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     }
 
     # cleanup
-    do.call(file.remove, list(list.files(out_dir, paste0(".*M(O|Y)D.*_mosaic.tif"), full.names = TRUE, no.. = TRUE)))
+    do.call(file.remove, list(list.files(out_dir, paste0("_mosaic.tif"), full.names = TRUE, no.. = TRUE)))
   } else {
     logging::loginfo("Skipped image reprojection since no out_proj specified.")
   }
@@ -121,9 +119,9 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   # ---- AOI Cropping ----
 
   if (!is.na(out_proj)) {
-    img_files <- list.files(out_dir, paste0('.*M(O|Y)D.*_proj.tif'), full.names = TRUE, no.. = TRUE)
+    img_files <- list.files(out_dir, paste0('_proj.tif'), full.names = TRUE, no.. = TRUE)
   } else {
-    img_files <- list.files(out_dir, paste0('.*M(O|Y)D.*_mosaic.tif'), full.names = TRUE, no.. = TRUE)
+    img_files <- list.files(out_dir, paste0('_mosaic.tif'), full.names = TRUE, no.. = TRUE)
   }
   aoi_ext <- try(raster::extent(aoi))
   if (class(aoi_ext) == 'try-error') stop(paste0("Unable to retrieve extent from aoi: ", as.character(aoi_ext[1])))
@@ -139,14 +137,14 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
   # cleanup
   if (!is.na(out_proj)) {
-    do.call(file.remove, list(list.files(out_dir, paste0(".*M(O|Y)D.*_proj.tif"), full.names = TRUE, no.. = TRUE)))
+    do.call(file.remove, list(list.files(out_dir, paste0("_proj.tif"), full.names = TRUE, no.. = TRUE)))
   } else {
-    do.call(file.remove, list(list.files(out_dir, paste0(".*M(O|Y)D.*_mosaic.tif"), full.names = TRUE, no.. = TRUE)))
+    do.call(file.remove, list(list.files(out_dir, paste0("_mosaic.tif"), full.names = TRUE, no.. = TRUE)))
   }
 
   # ---- AOI Masking ----
 
-  img_files <- list.files(out_dir, paste0('.*M(O|Y)D.*_crop.tif'), full.names = TRUE, no.. = TRUE)
+  img_files <- list.files(out_dir, paste0('_crop.tif'), full.names = TRUE, no.. = TRUE)
 
   logging::loginfo("Masking images to AOI...")
   foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils') %dopar% {
@@ -155,12 +153,12 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   }
 
   # cleanup
-  do.call(file.remove, list(list.files(out_dir, paste0(".*M(O|Y)D.*", "_crop.tif"), full.names = TRUE, no.. = TRUE)))
+  do.call(file.remove, list(list.files(out_dir, "_crop.tif", full.names = TRUE, no.. = TRUE)))
 
 
   # stop the multicore processing cluster
   parallel::stopCluster(par_cluster)
-  logging::loginfo("---------------------------------------------------------------------------------------------")
+  logging::loginfo("--------------------------------------------------------------")
   logging::loginfo("Parallel processing cluster stopped.")
 
   logging::loginfo("Preprocessing successful.")
