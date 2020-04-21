@@ -3,6 +3,7 @@
 export(downloadMODIS)
 export(prepMODIS)
 import(doParallel)
+import(doSNOW)
 import(parallel)
 importFrom(MODIS,getSds)
 importFrom(foreach,foreach)
