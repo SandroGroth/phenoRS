@@ -1,5 +1,5 @@
 #'
-#' @import doParallel
+#' @import doSNOW
 #' @import parallel
 #'
 #' @importFrom foreach foreach
@@ -31,10 +31,9 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
   # set up parallel processing based on number of available or specified cores
   if (is.na(cores)) cores <- parallel::detectCores() -1
-  par_cluster <- parallel::makeCluster(cores)
-  doParallel::registerDoParallel(par_cluster)
+  c1 <- parallel::makePSOCKcluster(cores)
+  doSNOW::registerDoSNOW(c1)
   logging::loginfo(paste0("Parallel processing initialized on ", cores, " cores"))
-  logging::loginfo("--------------------------------------------------------------")
 
   # list all hdf files in in_dir and make sure they are MODIS
   hdf_files <- list.files(in_dir, pattern = ".*M(O|Y)D.*.hdf", full.names = TRUE, no.. = TRUE)
@@ -47,7 +46,13 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   # ---- SDS Extraction ----
 
   logging::loginfo("Extracting subdatasets from .hdf files...")
-  foreach::foreach(f = 1:length(hdf_files), .packages = c("raster", "gdalUtils", "MODIS")) %dopar% {
+
+  # Setup progress bar
+  pb <- txtProgressBar(min = 1, max = length(hdf_files), style = 3)
+  progress <- function(n) setTxtProgressBar(pb, n)
+  opts = list(progress=progress)
+
+  foreach::foreach(f = 1:length(hdf_files), .packages = c("raster", "gdalUtils", "MODIS"), .options.snow = opts) %dopar% {
     out_file <- file.path(out_dir, paste0(strsplit(basename(hdf_files[f]), ".hdf")[[1]][1], "_extract.tif"))
     sds <- MODIS::getSds(hdf_files[f])[[2]]
 
@@ -73,6 +78,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     writeRaster(r_stack, filename = out_file, datatype = 'INT2U', format = 'GTiff', overwrite = TRUE)
   }
   raster::removeTmpFiles(h=0)
+  close(pb)
 
   # ---- Tile Mosaicing ----
 
@@ -82,12 +88,18 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   if (length(.get_unique_tilestr(img_files)) > 1) {
     dates <- unique(do.call("c", lapply(img_files, .getMODIS_date)))
 
-    foreach::foreach(f = 1:length(dates), .packages = "gdalUtils") %dopar% {
+    # Setup progress bar
+    pb <- txtProgressBar(min = 1, max = length(dates), style = 3)
+    progress <- function(n) setTxtProgressBar(pb, n)
+    opts = list(progress=progress)
+
+    foreach::foreach(f = 1:length(dates), .packages = "gdalUtils", .options.snow = opts) %dopar% {
       date_curr_str <- strftime(dates[f], format = '%Y%j')
       date_curr_files <- img_files[grepl(paste0("\\.A", date_curr_str, "\\."), img_files)]
       out_file <- file.path(out_dir, paste0(date_curr_str, "_mosaic.tif"))
       gdalUtils::mosaic_rasters(date_curr_files, out_file, of = 'GTiff', ot = 'UInt16')
     }
+    close(pb)
   } else {
     # just rename to pretend mosaicing was done
     logging::loginfo("Skipped mosaicing since only one unique tile found.")
@@ -104,13 +116,21 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   # ---- Image Reprojection ----
 
   if (!is.na(out_proj)) {
+    logging::loginfo(paste0("Reprojecting images to: ", out_proj))
+
     img_files <- list.files(out_dir, '_mosaic.tif', full.names = TRUE, no.. = TRUE)
 
-    logging::loginfo(paste0("Reprojecting images to: ", out_proj))
-    foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils') %dopar% {
+    # Setup progress bar
+    pb <- txtProgressBar(min = 1, max = length(img_files), style = 3)
+    progress <- function(n) setTxtProgressBar(pb, n)
+    opts = list(progress=progress)
+
+    foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils', .options.snow = opts) %dopar% {
       out_file <- file.path(out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_proj.tif"))
       gdalUtils::gdalwarp(img_files[f], out_file, t_srs = out_proj, of = 'GTiff', ot = 'UInt16')
     }
+
+    close(pb)
 
     # cleanup
     do.call(file.remove, list(list.files(out_dir, "_mosaic.tif", full.names = TRUE, no.. = TRUE)))
@@ -120,6 +140,8 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
   # ---- AOI Cropping ----
 
+  logging::loginfo("Cropping images to AOI...")
+
   if (!is.na(out_proj)) {
     img_files <- list.files(out_dir, '_proj.tif', full.names = TRUE, no.. = TRUE)
   } else {
@@ -128,14 +150,20 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   aoi_ext <- try(raster::extent(aoi))
   if (class(aoi_ext) == 'try-error') stop(paste0("Unable to retrieve extent from aoi: ", as.character(aoi_ext[1])))
 
-  logging::loginfo("Cropping images to AOI...")
-  foreach::foreach(f = 1:length(img_files), .packages = c('gdalUtils', 'raster')) %dopar% {
+  # Setup progress bar
+  pb <- txtProgressBar(min = 1, max = length(img_files), style = 3)
+  progress <- function(n) setTxtProgressBar(pb, n)
+  opts = list(progress=progress)
+
+  foreach::foreach(f = 1:length(img_files), .packages = c('gdalUtils', 'raster'), .options.snow = opts) %dopar% {
     out_file <- file.path(out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_crop.tif"))
     temp_env <- tempfile(fileext = ".vrt")
     catch <- gdalUtils::gdalbuildvrt(img_files[f], temp_env, te = c(aoi_ext@xmin, aoi_ext@ymin, aoi_ext@xmax, aoi_ext@ymax))
     x <- raster::stack(temp_env)
     raster::writeRaster(x, out_file, format = 'GTiff', datatype = 'INT2U')
   }
+
+  close(pb)
 
   # cleanup
   if (!is.na(out_proj)) {
@@ -145,33 +173,47 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   }
 
   # ---- AOI Masking ----
+  logging::loginfo("Masking images to AOI...")
 
   img_files <- list.files(out_dir, '_crop.tif', full.names = TRUE, no.. = TRUE)
 
-  logging::loginfo("Masking images to AOI...")
-  foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils') %dopar% {
+  # Setup progress bar
+  pb <- txtProgressBar(min = 1, max = length(img_files), style = 3)
+  progress <- function(n) setTxtProgressBar(pb, n)
+  opts = list(progress=progress)
+
+  foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils', .options.snow = opts) %dopar% {
     out_file <- file.path(out_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_prep.tif"))
     gdalUtils::gdalwarp(img_files[f], out_file, cutline = temp_aoi, of = 'GTiff', ot = 'Uint16')
   }
+
+  close(pb)
 
   # cleanup
   do.call(file.remove, list(list.files(out_dir, "_crop.tif", full.names = TRUE, no.. = TRUE)))
 
   # ---- Flat Binary Conversion ----
 
+  logging::loginfo("Converting prepared images to flat binary files...")
+
   bin_dir <- file.path(out_dir, "bin")
   dir.create(bin_dir)
   img_files <- list.files(out_dir, "_prep.tif", full.names = TRUE, no.. = TRUE)
 
-  logging::loginfo("Converting prepared images to flat binary files...")
-  foreach::foreach(f = 1:length(img_files), .packages = "gdalUtils") %dopar% {
+  # Setup progress bar
+  pb <- txtProgressBar(min = 1, max = length(img_files), style = 3)
+  progress <- function(n) setTxtProgressBar(pb, n)
+  opts = list(progress=progress)
+
+  foreach::foreach(f = 1:length(img_files), .packages = "gdalUtils", .options.snow = opts) %dopar% {
     out_file <- file.path(bin_dir, paste0(strsplit(basename(img_files[f]), '_')[[1]][1], "_prepbin.bin"))
     gdalUtils::gdal_translate(img_files[f], out_file, of = 'ENVI', ot = 'UInt16', co = "INTERLEAVE=BIL")
   }
 
+  close(pb)
+
   # stop the multicore processing cluster
-  parallel::stopCluster(par_cluster)
-  logging::loginfo("--------------------------------------------------------------")
+  parallel::stopCluster(c1)
   logging::loginfo("Parallel processing cluster stopped.")
 
   logging::loginfo("Preprocessing successful.")
