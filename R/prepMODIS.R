@@ -45,6 +45,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   sf::st_write(aoi, temp_aoi, overwrite = TRUE, delete_dsn = TRUE, quiet = TRUE)
 
   # ---- SDS Extraction ----
+
   logging::loginfo("Extracting subdatasets from .hdf files...")
   foreach::foreach(f = 1:length(hdf_files), .packages = c("raster", "gdalUtils", "MODIS")) %dopar% {
     out_file <- file.path(out_dir, paste0(strsplit(basename(hdf_files[f]), ".hdf")[[1]][1], "_extract.tif"))
@@ -74,6 +75,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   raster::removeTmpFiles(h=0)
 
   # ---- Tile Mosaicing ----
+
   logging::loginfo("Mosaicing tiles...")
   img_files <- list.files(out_dir, '.*M(O|Y)D.*_extract.tif', full.names = TRUE, no.. = TRUE)
 
@@ -97,12 +99,12 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   }
 
   # cleanup
-  do.call(file.remove, list(list.files(out_dir, paste0(".*M(O|Y)D.*_extract.tif"), full.names = TRUE, no.. = TRUE)))
+  do.call(file.remove, list(list.files(out_dir, ".*M(O|Y)D.*_extract.tif", full.names = TRUE, no.. = TRUE)))
 
   # ---- Image Reprojection ----
 
   if (!is.na(out_proj)) {
-    img_files <- list.files(out_dir, paste0('_mosaic.tif'), full.names = TRUE, no.. = TRUE)
+    img_files <- list.files(out_dir, '_mosaic.tif', full.names = TRUE, no.. = TRUE)
 
     logging::loginfo(paste0("Reprojecting images to: ", out_proj))
     foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils') %dopar% {
@@ -111,7 +113,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     }
 
     # cleanup
-    do.call(file.remove, list(list.files(out_dir, paste0("_mosaic.tif"), full.names = TRUE, no.. = TRUE)))
+    do.call(file.remove, list(list.files(out_dir, "_mosaic.tif", full.names = TRUE, no.. = TRUE)))
   } else {
     logging::loginfo("Skipped image reprojection since no out_proj specified.")
   }
@@ -119,9 +121,9 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   # ---- AOI Cropping ----
 
   if (!is.na(out_proj)) {
-    img_files <- list.files(out_dir, paste0('_proj.tif'), full.names = TRUE, no.. = TRUE)
+    img_files <- list.files(out_dir, '_proj.tif', full.names = TRUE, no.. = TRUE)
   } else {
-    img_files <- list.files(out_dir, paste0('_mosaic.tif'), full.names = TRUE, no.. = TRUE)
+    img_files <- list.files(out_dir, '_mosaic.tif', full.names = TRUE, no.. = TRUE)
   }
   aoi_ext <- try(raster::extent(aoi))
   if (class(aoi_ext) == 'try-error') stop(paste0("Unable to retrieve extent from aoi: ", as.character(aoi_ext[1])))
@@ -137,14 +139,14 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
   # cleanup
   if (!is.na(out_proj)) {
-    do.call(file.remove, list(list.files(out_dir, paste0("_proj.tif"), full.names = TRUE, no.. = TRUE)))
+    do.call(file.remove, list(list.files(out_dir, "_proj.tif", full.names = TRUE, no.. = TRUE)))
   } else {
-    do.call(file.remove, list(list.files(out_dir, paste0("_mosaic.tif"), full.names = TRUE, no.. = TRUE)))
+    do.call(file.remove, list(list.files(out_dir, "_mosaic.tif", full.names = TRUE, no.. = TRUE)))
   }
 
   # ---- AOI Masking ----
 
-  img_files <- list.files(out_dir, paste0('_crop.tif'), full.names = TRUE, no.. = TRUE)
+  img_files <- list.files(out_dir, '_crop.tif', full.names = TRUE, no.. = TRUE)
 
   logging::loginfo("Masking images to AOI...")
   foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils') %dopar% {
@@ -155,6 +157,17 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
   # cleanup
   do.call(file.remove, list(list.files(out_dir, "_crop.tif", full.names = TRUE, no.. = TRUE)))
 
+  # ---- Flat Binary Conversion ----
+
+  bin_dir <- file.path(out_dir, "bin")
+  dir.create(bin_dir)
+  img_files <- list.files(out_dir, "_prep.tif", full.names = TRUE, no.. = TRUE)
+
+  logging::loginfo("Converting prepared images to flat binary files...")
+  foreach::foreach(f = 1:length(img_files), .packages = "gdalUtils") %dopar% {
+    out_file <- file.path(bin_dir, paste0(strsplit(basename(img_files[f]), '_')[[1]][1], "_prepbin.bin"))
+    gdalUtils::gdal_translate(img_files[f], out_file, of = 'ENVI', ot = 'UInt16', co = "INTERLEAVE=BIL")
+  }
 
   # stop the multicore processing cluster
   parallel::stopCluster(par_cluster)
