@@ -13,7 +13,8 @@ fitTS <- function(prep_dir, out_dir) {
   if (!all(is.null(catch))) stop("Failed to generate all output metadata xml files.")
 
   hdr_files <- list.files(prep_dir, pattern = '.hdr', full.names =TRUE, no.. = TRUE)
-  catch <- unlist(lapply(hdr_files, .generate_hdr)) #TODO
+  catch <- unlist(lapply(hdr_files, .generate_hdr, out_dir = out_dir))
+  if (!all(is.null(catch))) stop("Failed to generate all output metadata hdr files.")
 
   # create connections for byte-streaming the image files
   bin_files <- list.files(prep_dir, pattern = '\\.bin$', full.names = TRUE, no.. = TRUE)
@@ -127,4 +128,22 @@ fitTS <- function(prep_dir, out_dir) {
   return(xml2::write_xml(out_xml, out_file))
 }
 
-.generate_hdr <- function(in_hdr_file, out_dir) {}
+.generate_hdr <- function(in_hdr_file, out_dir) {
+
+  # Check if output hdr already exists
+  out_file <- file.path(out_dir, paste0(strsplit(basename(in_hdr_file), '_')[[1]][1], "_fit.hdr"))
+  if(file.exists(out_file)) stop(paste0(basename(in_hdr_file)), " already exists.")
+
+  # read hdr file as dataframe
+  out_hdr <- read.table(in_hdr_file, sep = "\t", stringsAsFactors = FALSE)
+
+  # change description to output path
+  out_hdr[which(grepl('description', out_hdr$V1))[1] + 1, 1] <- paste0(out_file, '}')
+  # change number of bands to 2
+  out_hdr[which(grepl('bands', out_hdr$V1))[1], 1] <- 'bands = 3'
+  # remove band 3 from band names
+  out_hdr[which(grepl('Band 2', out_hdr$V1))[1], 1] <- 'Band 2}'
+  out_hdr <- out_hdr[-c(which(grepl('Band 3', out_hdr$V1))[1]), ]
+
+  return(write.table(out_hdr, out_file, append = FALSE, quote = FALSE, row.names = FALSE, col.names = FALSE))
+}
