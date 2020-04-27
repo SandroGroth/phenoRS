@@ -1,4 +1,6 @@
 #'
+#' @title Prepare donwloaded MODIS archives for fitting.
+#'
 #' @import doSNOW
 #' @import parallel
 #'
