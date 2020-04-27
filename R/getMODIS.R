@@ -25,6 +25,7 @@
 #'
 #' @examples
 #' ## Import packages
+#' \dontrun{
 #' library(getSpatialData)
 #' library(sf)
 #'
@@ -34,7 +35,6 @@
 #' time_range <- c("2017-01-01", "2017-12-31")
 #'
 #' ## Login to USGS
-#' \dontrun{
 #' loginUSGS("Username")
 #'
 #' ## get available products
