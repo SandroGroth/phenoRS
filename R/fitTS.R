@@ -20,6 +20,14 @@ fitTS <- function(prep_dir, out_dir) {
   bin_files <- list.files(prep_dir, pattern = '\\.bin$', full.names = TRUE, no.. = TRUE)
   cons <- lapply(bin_files, function(x) {file(x, 'rb')})
 
+  # create connections for output image files
+  out_files <- unlist(lapply(bin_files, function(x) {
+    out_file <- file.path(out_dir, paste0(strsplit(basename(x), '_')[[1]][1], "_fit.bin"))
+    if (!isTRUE(file.create(out_file))) stop(paste0("Failed to create output file ", out_file))
+    return(out_file)
+  }))
+  out_cons <- lapply(out_files, function(x) {file(x, 'wb')})
+
   # loop trough all rows
   for (i in 1:meta$lines) {
 
@@ -49,6 +57,7 @@ fitTS <- function(prep_dir, out_dir) {
     print(i)
   }
   catch <- lapply(cons, close)
+  catch <- lapply(out_cons, close)
 }
 
 .check_bin_metadata <- function(xmls) {
