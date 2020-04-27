@@ -7,7 +7,8 @@ Maintainer: The package maintainer <yourself@somewhere.net>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
-Imports: doParallel, doSNOW, foreach, gdalUtils, getSpatialData, logging, MODIS, raster, sf
+Imports: doParallel, doSNOW, foreach, gdalUtils, logging, MODIS, raster, sf
+Remotes: 16EAGLE/getSpatialData
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.0
