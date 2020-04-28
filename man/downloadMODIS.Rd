@@ -33,6 +33,7 @@ Selected MODIS tiles are downloaded as .hdf archives from the Level-1 and Atmosp
 }
 \examples{
 ## Import packages
+\dontrun{
 library(getSpatialData)
 library(sf)
 
@@ -42,7 +43,6 @@ set_aoi(aoi_data[[1]])
 time_range <- c("2017-01-01", "2017-12-31")
 
 ## Login to USGS
-\dontrun{
 loginUSGS("Username")
 
 ## get available products

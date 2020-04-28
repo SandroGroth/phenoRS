@@ -16,8 +16,10 @@ before_install:
   - sudo apt-get install libudunits2-dev
   - sudo apt-get install libssh2-1-dev
   - sudo apt-get install netcdf-bin
-  
+
   - R -e 'install.packages("devtools")'
+
+r_github_packages: 16EAGLE/getSpatialData
 
 install:
   - R -e 'devtools::install_deps(dep = T)'
