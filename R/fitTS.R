@@ -1,4 +1,4 @@
-fitTS <- function(prep_dir, out_dir, start_year) {
+fitTS <- function(prep_dir, out_dir) {
 
   # ---- Input Checks ----
 
@@ -39,14 +39,17 @@ fitTS <- function(prep_dir, out_dir, start_year) {
     r <- raster::raster(x)
     names(r) <- strsplit(basename(x), '_')[[1]][1]
     return(r)}))
+  names(dc_vi) <- unlist(lapply(bin_vi_files, function (x) {strsplit(basename(x), '_')[[1]][1]}))
   dc_doy <- raster::brick(sapply(bin_doy_files, function(x) {
     r <- raster::raster(x)
     names(r) <- strsplit(basename(x), '_')[[1]][1]
     return(r)}))
+  names(dc_doy) <- unlist(lapply(bin_doy_files, function (x) {strsplit(basename(x), '_')[[1]][1]}))
   dc_qa  <- raster::brick(sapply(bin_qa_files, function(x) {
     r <- raster::raster(x)
     names(r) <- strsplit(basename(x), '_')[[1]][1]
     return(r)}))
+  names(dc_qa) <- unlist(lapply(bin_qa_files, function (x) {strsplit(basename(x), '_')[[1]][1]}))
 
   # ---- Curve Fitting ----
 
@@ -62,25 +65,44 @@ fitTS <- function(prep_dir, out_dir, start_year) {
     # Loop through all pixels of the extrated row
     for (j in 1:n_cols) {
 
+      #logging::logdebug(paste0("Processing col ", j, " of ", n_cols, "..."))
+
       # extract all values from current pixel => 1 time series curve
       pix_vi  <- row_vi[j, ]
-      pix_doy <- row_vi[j, ]
-      pix_qa  <- row_vi[j, ]
+      pix_doy <- row_doy[j, ]
+      pix_qa  <- row_qa[j, ]
 
       # Skip curve fitting when whole time series is NA
-      if (!all(is.na(pix_vi))) next
+      if (all(is.na(pix_vi))) next
 
+      print(j)
       # -- Date Extraction / Correction --
+      # TODO: try to fix quick and dirty data wrestling below
+      pix_years <- as.integer(substr(names(pix_doy), 2, 5))
+      pix_doy <- unname(pix_doy)
+      pix_years[!is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] <- pix_years[
+        !is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] + 1
+      pix_doy[!is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] <- pix_doy[
+        !is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] - 366
+      pix_years[!is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] <- pix_years[
+        !is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] + 1
+      pix_doy[!is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] <- pix_doy[
+        !is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] - 365
+      pix_doystr <- paste0(as.character(pix_years), as.character(pix_doy))
+      pix_dates <- as.Date(pix_doystr, format = "%Y%j")
+
+      #print(pix_dates)
+      #Sys.sleep(1)
 
 
-      # Write the fitted results
+      # Overwrite the curve with fitted results
       row_vi[j, ] <- pix_vi
 
     }
 
     dc_vi[i, ] <- row_vi
   }
-  plot(dc_vi[[1]])
+  #plot(dc_vi[[1]])
 }
 
 .check_bin_metadata <- function(xml_files) {

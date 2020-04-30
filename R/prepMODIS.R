@@ -7,12 +7,13 @@
 #' @importFrom foreach foreach
 #' @importFrom gdalUtils gdal_translate gdalwarp gdalbuildvrt mosaic_rasters
 #' @importFrom logging loginfo logdebug
+#' @importFrom lubridate leap_year
 #' @importFrom MODIS getSds
 #' @importFrom raster raster stack rasterTmpFile removeTmpFiles extension extent writeRaster
 #'
 #' @export
 #'
-prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
+prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, correct_doy=TRUE, cores=NA) {
 
   # check if input parameters are valid on the first look
   valid_VIs <- c('NDVI', 'EVI')
@@ -51,14 +52,15 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
 
   # ---- SDS Extraction ----
 
-  logging::loginfo("Extracting subdatasets from .hdf files...")
+  logging::loginfo("Extracting subdatasets from .hdf files and correcting DOY layer...")
 
   # Setup progress bar
   pb <- txtProgressBar(min = 1, max = length(hdf_files), style = 3)
   progress <- function(n) setTxtProgressBar(pb, n)
   opts = list(progress=progress)
 
-  foreach::foreach(f = 1:length(hdf_files), .packages = c("raster", "gdalUtils", "MODIS"), .options.snow = opts) %dopar% {
+  foreach::foreach(f = 1:length(hdf_files), .packages = c("raster", "gdalUtils", "MODIS"),
+                   .export = c(".getMODIS_compositeDOY", ".getMODIS_compositeYear", "correctDOYs"), .options.snow = opts) %dopar% {
     out_vi_file  <- file.path(orig_dir, paste0(strsplit(basename(hdf_files[f]), ".hdf")[[1]][1], "_", vi, "_extract.tif"))
     out_doy_file <- file.path(orig_dir, paste0(strsplit(basename(hdf_files[f]), ".hdf")[[1]][1], "_DOY_extract.tif"))
     out_qa_file  <- file.path(orig_dir, paste0(strsplit(basename(hdf_files[f]), ".hdf")[[1]][1], "_QA_extract.tif"))
@@ -80,6 +82,18 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, cores=NA) {
     r_vi  <- raster::raster(temp_env_vi) / 10000 # TODO: check value range for correct rescaling
     r_doy <- raster::raster(temp_env_doy)
     r_qa  <- raster::raster(temp_env_qa)
+
+    # Execute DOY correction
+    if (isTRUE(correct_doy)) { # TODO: Set needsDOYCorrect as an option of the package
+      if(.getMODIS_compositeDOY(hdf_files[f]) %in% c(353, 361)) {
+        comp_year <- .getMODIS_compositeYear(hdf_files[f])
+        if (isTRUE(lubridate::leap_year(comp_year))) {
+          r_doy[r_doy < 12] <- r_doy[r_doy < 12] + 366
+        } else {
+          r_doy[r_doy < 13] <- r_doy[r_doy < 13] + 365
+        }
+      }
+    }
 
     names(r_vi)  <- vi
     names(r_doy) <- "DOY"

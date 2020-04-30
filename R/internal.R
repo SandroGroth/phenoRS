@@ -6,6 +6,14 @@
   return(as.character(strftime(date, format = format)))
 }
 
+.getMODIS_compositeDOY <- function(file, pos1=14, pos2=16) {
+  return(as.integer(substr(basename(file), pos1, pos2)))
+}
+
+.getMODIS_compositeYear <- function(file, pos1=10, pos2=13) {
+  return(as.integer(substr(basename(file), pos1, pos2)))
+}
+
 .getMODIS_tile <- function(file, pos1=18, pos2=23) {
   tile_info <- substr(basename(file), pos1, pos2)
   h <- as.numeric(substr(tile_info, 2, 3))

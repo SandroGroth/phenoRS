@@ -4,7 +4,15 @@
 \alias{prepMODIS}
 \title{Prepare donwloaded MODIS archives for fitting.}
 \usage{
-prepMODIS(in_dir, out_dir, aoi, vi = "NDVI", out_proj = NA, cores = NA)
+prepMODIS(
+  in_dir,
+  out_dir,
+  aoi,
+  vi = "NDVI",
+  out_proj = NA,
+  correct_doy = TRUE,
+  cores = NA
+)
 }
 \description{
 Prepare donwloaded MODIS archives for fitting.
