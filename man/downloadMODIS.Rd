@@ -4,7 +4,7 @@
 \alias{downloadMODIS}
 \title{Download MODIS Data}
 \usage{
-downloadMODIS(gSD_query, out_dir, use_aria = T, do_par = T, cores = NA)
+downloadMODIS(gSD_query, out_dir, use_aria = TRUE, do_par = TRUE, cores = NA)
 }
 \arguments{
 \item{gSD_query}{records data.frame. A valid query result returned by \link[getSpatialData]{getMODIS_query}.}
