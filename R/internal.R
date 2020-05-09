@@ -1,9 +1,26 @@
+.is_gdal_valid <- function() {
+  valid <- !is.null(getOption("gdalUtils_gdalPath"))
+  if (isFALSE(valid)) {
+    gdal_setInstallation()
+    valid <- !is.null(getOption("gdalUtils_gdalPath"))
+  }
+  return(valid)
+}
+
 .getMODIS_date <- function(file, pos1=10, pos2=16, format="%Y%j") {
   return(as.Date(substr(basename(file), pos1, pos2), format = format))
 }
 
 .getMODIS_datestr <- function(date, format='%Y%j') {
   return(as.character(strftime(date, format = format)))
+}
+
+.getMODIS_compositeDOY <- function(file, pos1=14, pos2=16) {
+  return(as.integer(substr(basename(file), pos1, pos2)))
+}
+
+.getMODIS_compositeYear <- function(file, pos1=10, pos2=13) {
+  return(as.integer(substr(basename(file), pos1, pos2)))
 }
 
 .getMODIS_tile <- function(file, pos1=18, pos2=23) {

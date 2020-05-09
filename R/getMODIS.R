@@ -48,17 +48,17 @@
 #' donwloadMODIS(query, "path/to/directory")
 #' }
 #'
-#' @import doParallel
+#' @import doSNOW
+#' @import parallel
 #'
 #' @importFrom logging loginfo logdebug
-#' @importFrom parallel detectCores makeCluster stopCluster
 #' @importFrom getSpatialData getMODIS_data
 #'
 #' @seealso \link{prepMODIS} \link[getSpatialData]{getMODIS_query}
 #'
 #' @export
 #'
-downloadMODIS <- function(gSD_query, out_dir, use_aria=T, do_par=T, cores=NA) {
+downloadMODIS <- function(gSD_query, out_dir, use_aria=TRUE, do_par=TRUE, cores=NA) {
 
   logging::loginfo(paste0("Starting download of product(s) '", paste0(gSD_query$displayId, collapse = "', "), "'."))
 
@@ -74,14 +74,14 @@ downloadMODIS <- function(gSD_query, out_dir, use_aria=T, do_par=T, cores=NA) {
              "/", substr(ydoy, 1, 4), "/", substr(ydoy, 5, nchar(ydoy)), "/", fn)
     })
 
-    # Check if aria2c  available
+    # Check if aria2c available
     if (nchar(unname(Sys.which("aria2c"))) == 0) {
       stop("aria2c.exe not found. Make sure it's correctly added to your PATH variable.")
     }
     logging::logdebug(paste0("aria2c found: ", unname(Sys.which("aria2c"))))
 
     # check if Login Data is available from getSpatialData
-    if(is.null(options("gSD_usgs_user")) && is.null(options("gSD_usgs_passw"))) {
+    if(is.null(options("gSD.usgs_user")) || is.null(options("gSD.usgs_pass"))) {
       stop("No Login credentials available. Try executing getSpatialData::loginUSGS() first.")
     }
 
@@ -92,23 +92,26 @@ downloadMODIS <- function(gSD_query, out_dir, use_aria=T, do_par=T, cores=NA) {
     close(f)
 
     # Build aria2c command
-    aria_string <- paste0(Sys.which("aria2c"),
-                          " -i ", file.path(tempdir(), "MOD_URLs.txt"),
-                          " -d ", out_dir,
-                          " -x ", 6,
-                          " --http-use=", options("gSD.usgs_user"),
-                          " --http-passw=", options("gSD.usgs_passw"),
-                          " --allow-overwrite",
-                          " --retry-wait=", 2)
+    username <- options("gSD.usgs_user")
+    passw <- options("gSD.usgs_pass")
+    cmd <- Sys.which("aria2c")
+    args <- c(paste0(" -i ", file.path(tempdir(), "MOD_URLs.txt")),
+              paste0(" -d ", out_dir),
+              paste0(" -x ", 6),
+              paste0(" --http-use=", username),
+              paste0(" --http-passw=", passw$gSD.usgs_pass),
+              paste0(" --retry-wait=", 2),
+              paste0(" --continue=", "true"),
+              " --allow-overwrite")
 
     # Execute bulk download using aria2c in seperate command window to monitor progress
-    try(system(aria_string, intern = Sys.info()["sysname"] == "Windows", wait = FALSE, invisible = FALSE))
+    try(system2(command = cmd, args = args, wait = TRUE, stdout = "", invisible = FALSE))
   } else {
     if(isTRUE(do_par)) {
       # set up parallel processing
       if (is.na(cores)) cores <- parallel::detectCores() - 1
-      c1 <- parallel::makeCluster(cores)
-      doParallel::registerDoParallel(c1)
+      c1 <- parallel::makePSOCKcluster(cores)
+      doSNOW::registerDoSNOW(c1)
       logging::logdebug(paste0("Set up parallel processing on ", cores, " cores"))
 
       # execute download
