@@ -1,3 +1,12 @@
+.is_gdal_valid <- function() {
+  valid <- !is.null(getOption("gdalUtils_gdalPath"))
+  if (isFALSE(valid)) {
+    gdal_setInstallation()
+    valid <- !is.null(getOption("gdalUtils_gdalPath"))
+  }
+  return(valid)
+}
+
 .getMODIS_date <- function(file, pos1=10, pos2=16, format="%Y%j") {
   return(as.Date(substr(basename(file), pos1, pos2), format = format))
 }

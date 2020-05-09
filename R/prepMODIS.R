@@ -5,10 +5,9 @@
 #' @import parallel
 #'
 #' @importFrom foreach foreach
-#' @importFrom gdalUtils gdal_translate gdalwarp gdalbuildvrt mosaic_rasters
+#' @importFrom gdalUtils gdal_translate gdalwarp gdalbuildvrt mosaic_rasters get_subdatasets
 #' @importFrom logging loginfo logdebug
 #' @importFrom lubridate leap_year
-#' @importFrom MODIS getSds
 #' @importFrom raster raster stack rasterTmpFile removeTmpFiles extension extent writeRaster
 #'
 #' @export
@@ -60,13 +59,15 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, correct_doy=
   opts = list(progress=progress)
 
   foreach::foreach(f = 1:length(hdf_files), .packages = c("raster", "gdalUtils", "MODIS"),
-                   .export = c(".getMODIS_compositeDOY", ".getMODIS_compositeYear", "correctDOYs"), .options.snow = opts) %dopar% {
+                   .export = c(".getMODIS_compositeDOY", ".getMODIS_compositeYear"), .options.snow = opts) %dopar% {
+  #for (f in 1:length(hdf_files)) {
+    print(f)
+    print(hdf_files[f])
     out_vi_file  <- file.path(orig_dir, paste0(strsplit(basename(hdf_files[f]), ".hdf")[[1]][1], "_", vi, "_extract.tif"))
     out_doy_file <- file.path(orig_dir, paste0(strsplit(basename(hdf_files[f]), ".hdf")[[1]][1], "_DOY_extract.tif"))
     out_qa_file  <- file.path(orig_dir, paste0(strsplit(basename(hdf_files[f]), ".hdf")[[1]][1], "_QA_extract.tif"))
 
-    sds <- MODIS::getSds(hdf_files[f])[[2]]
-
+    sd_names <- gdalUtils::get_subdatasets(hdf_files[f])
     temp_env_vi  <- raster::rasterTmpFile()
     temp_env_doy <- raster::rasterTmpFile()
     temp_env_qa  <- raster::rasterTmpFile()
@@ -75,33 +76,43 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, correct_doy=
     raster::extension(temp_env_doy) <- ".tif"
     raster::extension(temp_env_qa) <- ".tif"
 
-    gdalUtils::gdal_translate(grep(vi, sds, value = TRUE), dst_dataset = temp_env_vi)
-    gdalUtils::gdal_translate(grep("day of the year", sds, value = TRUE), dst_dataset = temp_env_doy)
-    gdalUtils::gdal_translate(grep("pixel reliability", sds, value = TRUE), dst_dataset = temp_env_qa)
+    print(paste(temp_env_vi, temp_env_doy, temp_env_qa))
+    catch <- tryCatch({
+      gdalUtils::gdal_translate(grep(vi, sd_names, value = TRUE), dst_dataset = temp_env_vi)
+      gdalUtils::gdal_translate(grep("day of the year", sd_names, value = TRUE), dst_dataset = temp_env_doy)
+      gdalUtils::gdal_translate(grep("pixel reliability", sd_names, value = TRUE), dst_dataset = temp_env_qa)
 
-    r_vi  <- raster::raster(temp_env_vi) / 10000 # TODO: check value range for correct rescaling
-    r_doy <- raster::raster(temp_env_doy)
-    r_qa  <- raster::raster(temp_env_qa)
+      r_vi  <- raster::raster(temp_env_vi) / 10000 # TODO: check value range for correct rescaling
+      r_doy <- raster::raster(temp_env_doy)
+      r_qa  <- raster::raster(temp_env_qa)
 
-    # Execute DOY correction
-    if (isTRUE(correct_doy)) { # TODO: Set needsDOYCorrect as an option of the package
-      if(.getMODIS_compositeDOY(hdf_files[f]) %in% c(353, 361)) {
-        comp_year <- .getMODIS_compositeYear(hdf_files[f])
-        if (isTRUE(lubridate::leap_year(comp_year))) {
-          r_doy[r_doy < 12] <- r_doy[r_doy < 12] + 366
-        } else {
-          r_doy[r_doy < 13] <- r_doy[r_doy < 13] + 365
+      # Execute DOY correction
+      if (isTRUE(correct_doy)) { # TODO: Set needsDOYCorrect as an option of the package
+        if(.getMODIS_compositeDOY(hdf_files[f]) %in% c(353, 361)) {
+          comp_year <- .getMODIS_compositeYear(hdf_files[f])
+          if (isTRUE(lubridate::leap_year(comp_year))) {
+            r_doy[r_doy < 12] <- r_doy[r_doy < 12] + 366
+          } else {
+            r_doy[r_doy < 13] <- r_doy[r_doy < 13] + 365
+          }
         }
       }
-    }
 
-    names(r_vi)  <- vi
-    names(r_doy) <- "DOY"
-    names(r_qa)  <- "QA"
+      names(r_vi)  <- vi
+      names(r_doy) <- "DOY"
+      names(r_qa)  <- "QA"
 
-    writeRaster(r_vi, filename = out_vi_file, datatype = 'INT2U', format = 'GTiff', overwrite = TRUE)
-    writeRaster(r_doy, filename = out_doy_file, datatype = 'INT2U', format = 'GTiff', overwrite = TRUE)
-    writeRaster(r_qa, filename = out_qa_file, datatype = 'INT2U', format = 'GTiff', overwrite = TRUE)
+      succ <- writeRaster(r_vi, filename = out_vi_file, datatype = 'INT2U', format = 'GTiff', overwrite = TRUE)
+      succ <- writeRaster(r_doy, filename = out_doy_file, datatype = 'INT2U', format = 'GTiff', overwrite = TRUE)
+      succ <- writeRaster(r_qa, filename = out_qa_file, datatype = 'INT2U', format = 'GTiff', overwrite = TRUE)
+      succ
+      },
+      error = function(cond) {
+        logging::logerror(paste0("GDAL error in ", hdf_files[f], " : "))
+        logging::logerror(cond)
+        logging::logerror("Skipping subdataset extraction...")
+        return(FALSE)
+      })
   }
   raster::removeTmpFiles(h=0)
   close(pb)
@@ -159,7 +170,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, correct_doy=
 
       foreach::foreach(f = 1:length(img_files), .packages = 'gdalUtils', .options.snow = opts) %dopar% {
         out_file <- file.path(orig_dir, paste0(strsplit(basename(img_files[f]), "_")[[1]][1], "_", sds[i], "_proj.tif"))
-        gdalUtils::gdalwarp(img_files[f], out_file, t_srs = out_proj, of = 'GTiff', ot = 'UInt16')
+        gdalUtils::gdalwarp(img_files[f], out_file, t_srs = out_proj, of = 'GTiff', ot = 'UInt16', verbose = T)
       }
 
       close(pb)
