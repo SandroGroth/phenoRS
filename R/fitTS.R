@@ -30,9 +30,9 @@ fitTS <- function(prep_dir, out_dir) {
   # ---- Datacube Construction ----
 
   # create connections for byte-streaming the image files
-  bin_vi_files  <- list.files(prep_dir, pattern = '.*_(NDVI|EVI)_.*.bin$', full.names = TRUE, no.. = TRUE)
-  bin_doy_files <- list.files(prep_dir, pattern = '.*_DOY_.*.bin$', full.names = TRUE, no.. = TRUE)
-  bin_qa_files  <- list.files(prep_dir, pattern = '.*_QA_.*.bin$', full.names = TRUE, no.. = TRUE)
+  bin_vi_files  <- list.files(prep_dir, pattern = '.*_(NDVI|EVI)_.*.envi$', full.names = TRUE, no.. = TRUE)
+  bin_doy_files <- list.files(prep_dir, pattern = '.*_DOY_.*.envi$', full.names = TRUE, no.. = TRUE)
+  bin_qa_files  <- list.files(prep_dir, pattern = '.*_QA_.*.envi$', full.names = TRUE, no.. = TRUE)
 
   # create datacubes
   dc_vi  <- raster::brick(sapply(bin_vi_files, function(x) {
@@ -65,7 +65,7 @@ fitTS <- function(prep_dir, out_dir) {
     # Loop through all pixels of the extrated row
     for (j in 1:n_cols) {
 
-      #logging::logdebug(paste0("Processing col ", j, " of ", n_cols, "..."))
+      logging::logdebug(paste0("Processing col ", j, " of ", n_cols, "..."))
 
       # extract all values from current pixel => 1 time series curve
       pix_vi  <- row_vi[j, ]
@@ -75,7 +75,6 @@ fitTS <- function(prep_dir, out_dir) {
       # Skip curve fitting when whole time series is NA
       if (all(is.na(pix_vi))) next
 
-      print(j)
       # -- Date Extraction / Correction --
       # TODO: try to fix quick and dirty data wrestling below
       pix_years <- as.integer(substr(names(pix_doy), 2, 5))
@@ -93,7 +92,7 @@ fitTS <- function(prep_dir, out_dir) {
 
       #print(pix_dates)
       #Sys.sleep(1)
-
+      pix_vi <- rHarmonics::harmonics_fun(pix_vi, pix_dates, 1)
 
       # Overwrite the curve with fitted results
       row_vi[j, ] <- pix_vi
@@ -101,6 +100,12 @@ fitTS <- function(prep_dir, out_dir) {
     }
 
     dc_vi[i, ] <- row_vi
+  }
+  for (i in 1:nlayers(dc_vi)) {
+    out_file <- file.path(out_dir, paste0(strsplit(basename(bin_vi_files[i]), '_')[[1]][1],
+                                                    "_", strsplit(basename(bin_vi_files), '_')[[1]][2],
+                                                    "_fit.bin"))
+    raster::writeRaster(dc_vi[[i]], out_file, format = "ENVI", datatype = "UInt16")
   }
   #plot(dc_vi[[1]])
 }

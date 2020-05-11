@@ -259,7 +259,7 @@ prepMODIS <- function(in_dir, out_dir, aoi, vi='NDVI', out_proj=NA, correct_doy=
   foreach::foreach(f = 1:length(img_files), .packages = "gdalUtils", .options.snow = opts) %dopar% {
     out_file <- file.path(out_dir, paste0(strsplit(basename(img_files[f]), '_')[[1]][1],
                                           "_", strsplit(basename(img_files[f]), '_')[[1]][2],
-                                          "_prepbin.bin"))
+                                          "_prepbin.envi"))
     gdalUtils::gdal_translate(img_files[f], out_file, of = 'ENVI', ot = 'UInt16', co = "INTERLEAVE=BIL")
   }
 
