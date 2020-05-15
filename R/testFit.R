@@ -11,6 +11,7 @@ library(magrittr)
 library(dplyr)
 library(tibble)
 library(ggplot2)
+library(rHarmonics)
 
 # UI ============================================================================================================
 
@@ -36,7 +37,6 @@ ui <- fluidPage(
       fluidRow(
         column(4,
           shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data')
-          #shinyFilesButton('viFileChoose', label = 'Load VI', title = 'Select VI Files', multiple = TRUE)
         ),
         column(8,
            textOutput('prepDirOutput')
@@ -54,7 +54,7 @@ ui <- fluidPage(
       plotOutput('fitPlot')
     ),
     column(4,
-      "SETTINGS"
+      numericInput('nSeasons', label = 'Number of Seasons / Year', value = 1, step = 1)
     )
   )
 )
@@ -200,16 +200,6 @@ server <- function(input, output, session) {
     } else NULL
   })
 
-  # doy_datacube <- reactive({
-  #   if (!is.null(doy_paths())) {
-  #     raster::brick(sapply(doy_paths(), function(x) {
-  #       r <- raster::raster(x)
-  #       names(r) <- strsplit(basename(x), '_')[[1]][1]
-  #       return(r)})) %>%
-  #       set_names(unlist(lapply(doy_paths(), function (x) {basename(x)})))
-  #   } else NULL
-  # })
-
   vi_crs <- reactive({
     if (!is.null(vi_datacube())) {
       crs(vi_datacube())
@@ -240,16 +230,30 @@ server <- function(input, output, session) {
     } else NULL
   })
 
+  n_seasons <- reactive({
+    input$nSeasons
+  })
+
+  harm_ts <- reactive({
+    if(!is.null(curr_vi_ts()) & !is.null(doy_dates())) {
+      harmonics_fun(curr_vi_ts(), doy_dates(), n_seasons())
+    }
+  })
+
   curr_ts_df <- reactive({
     if (!is.null(curr_vi_ts()) & !is.null(doy_dates())) {
-      data.frame(date=doy_dates(), vi=curr_vi_ts())
+      data.frame(date=doy_dates(), vi=curr_vi_ts(), vi_harm=harm_ts())
     } else NULL
   })
 
   curr_plot <- reactive({
     if (!is.null(curr_ts_df())) {
-      ggplot(curr_ts_df(), aes(x=date, y=vi)) +
-        geom_point()
+      ggplot(curr_ts_df(), aes(x=date)) +
+        geom_line(aes(y=vi, colour = "Original")) +
+        geom_line(aes(y=vi_harm, colour = "Harmonic")) +
+        scale_colour_manual("",
+                            breaks = c("Original", "Harmonic"),
+                            values = c("grey", "red"))
     } else NULL
   })
 
@@ -307,6 +311,8 @@ server <- function(input, output, session) {
     print(doy_dates())
     output$fitPlot <- renderPlot(curr_plot())
   })
+
+  observe({print(n_seasons())})
 }
 
 shinyApp(ui, server)
