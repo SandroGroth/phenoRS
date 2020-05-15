@@ -1,9 +1,16 @@
 library(shiny)
 library(shinyFiles)
 library(leaflet)
+library(lubridate)
 library(rgdal)
 library(sf)
+library(sp)
 library(raster)
+library(mapview)
+library(magrittr)
+library(dplyr)
+library(tibble)
+library(ggplot2)
 
 # UI ============================================================================================================
 
@@ -56,9 +63,11 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
 
-  # init elements -----------------------------------------------------------------------------------------------
+  # Globals -----------------------------------------------------------------------------------------------------
 
   volumes <- getVolumes()
+
+  # init elements -----------------------------------------------------------------------------------------------
 
   # AOI File selection
   shinyFileChoose(input, 'aoiFileChoose', roots = volumes, filetypes = c('', 'shp'))
@@ -67,7 +76,6 @@ server <- function(input, output, session) {
   # VI FIles selection
   shinyDirChoose(input, 'prepDirChoose', roots = volumes(), filetypes = c('', 'envi', 'tif'), session = session,
                  restrictions = system.file(package = 'base'))
-  #shinyFileChoose(input, 'viFileChoose', roots = volumes, filetypes = c('', 'envi', 'tif'))
   output$prepDirOutput <- renderText(unname(parseDirPath(volumes, input$prepDirChoose)))
 
   # Initial Map View
@@ -75,8 +83,12 @@ server <- function(input, output, session) {
     leaflet() %>%
       addProviderTiles(providers$Esri.WorldImagery, options = providerTileOptions(noWrap = TRUE)) %>%
       addProviderTiles(providers$CartoDB.PositronOnlyLabels, options = providerTileOptions(noWrap = TRUE)) %>%
-      setView(0, 0, zoom = 1)
+      setView(0, 0, zoom = 1) %>%
+      addMouseCoordinates()
   })
+
+  # Initial Plot
+  output$fitPlot <- renderPlot(ggplot())
 
   # reactives ---------------------------------------------------------------------------------------------------
 
@@ -121,9 +133,123 @@ server <- function(input, output, session) {
     } else NULL
   })
 
+  doy_rasters <- reactive({
+    if(!is.null(doy_paths())) {
+      sapply(doy_paths(), function(x) {raster(x)})
+    } else NULL
+  })
+
+  doy_datacube <- reactive({
+    if (!is.null(doy_rasters()) & !is.null(doy_paths())) {
+      brick(doy_rasters())
+    } else NULL
+  })
+
+  doy_years <- reactive({
+    if (!is.null(doy_paths()) & !is.null(curr_click())) {
+      doy_paths() %>%
+        lapply(. %>% {basename(.)}) %>%
+        unlist() %>%
+        substr(1, 4) %>%
+        as.integer()
+    } else NULL
+  })
+
+  doy_curr_ts <- reactive({
+    if (!is.null(doy_datacube()) &!is.null(doy_paths())) {
+      extract(doy_datacube(), curr_click()) %>%
+        unname() %>%
+        .[1, ]
+    } else NULL
+  })
+
+  doy_df <- reactive({
+    if (!is.null(doy_years()) & !is.null(doy_curr_ts())) {
+      data.frame(years=doy_years(), doys=doy_curr_ts(), stringsAsFactors = F) %>%
+        as.tibble() %>%
+        mutate(
+          years_1 = case_when(
+           !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(years + 1),  # doy > 366 and leap year
+           TRUE ~ years
+          ),
+          doys_1 = case_when(
+           !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(doys - 366), # doy > 366 and leap year
+           TRUE ~ doys
+           )
+        ) %>%
+        mutate(
+          years_2 = case_when(
+           !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(years + 1),  # doy > 365 and no leap year
+           TRUE ~ years_1
+          ),
+          doys_2 = case_when(
+           !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(doys - 365), # doy > 365 and no leap year
+           TRUE ~ doys_1
+          )
+         ) %>%
+        mutate(
+           dates = as.Date(paste0(as.character(years_2), as.character(doys_2)), format = "%Y%j")
+         )
+    } else NULL
+  })
+
+  doy_dates <- reactive({
+    if (!is.null(doy_df())) {
+      doy_df() %>%
+        pull(dates)
+    } else NULL
+  })
+
+  # doy_datacube <- reactive({
+  #   if (!is.null(doy_paths())) {
+  #     raster::brick(sapply(doy_paths(), function(x) {
+  #       r <- raster::raster(x)
+  #       names(r) <- strsplit(basename(x), '_')[[1]][1]
+  #       return(r)})) %>%
+  #       set_names(unlist(lapply(doy_paths(), function (x) {basename(x)})))
+  #   } else NULL
+  # })
+
+  vi_crs <- reactive({
+    if (!is.null(vi_datacube())) {
+      crs(vi_datacube())
+    } else NULL
+  })
+
   vi_selected <- reactive({
     if (!is.null(vi_datacube)) {
       input$displayViSelect
+    } else NULL
+  })
+
+  curr_click <- reactive({
+    click <- input$map_click
+    if (!is.null(click)) {
+      sp_click <- SpatialPoints(cbind(click$lng, click$lat), proj4string = CRS("+proj=longlat"))
+      sp_click <- spTransform(sp_click, vi_crs())
+      sp_click
+    } else NULL
+  })
+
+  curr_vi_ts <- reactive({
+    if (!is.null(curr_click()) & !is.null(vi_datacube)) {
+      # TODO: Check if click is within raster extent
+      extract(vi_datacube(), curr_click()) %>%
+        unname() %>%
+        .[1, ]
+    } else NULL
+  })
+
+  curr_ts_df <- reactive({
+    if (!is.null(curr_vi_ts()) & !is.null(doy_dates())) {
+      data.frame(date=doy_dates(), vi=curr_vi_ts())
+    } else NULL
+  })
+
+  curr_plot <- reactive({
+    if (!is.null(curr_ts_df())) {
+      ggplot(curr_ts_df(), aes(x=date, y=vi)) +
+        geom_point()
     } else NULL
   })
 
@@ -143,7 +269,10 @@ server <- function(input, output, session) {
           weight = 1,
           color = '#FF0000',
           opacity = 0.9,
-          fill = FALSE
+          fill = FALSE,
+          options = pathOptions(
+            clickable = FALSE
+          )
         ) %>%
         fitBounds(bbox[1], bbox[2], bbox[3], bbox[4])
       }
@@ -167,6 +296,17 @@ server <- function(input, output, session) {
     }
   })
 
+  # Extract click coordinates
+  observeEvent(input$map_click, {
+    click <- input$map_click
+    leafletProxy('map')%>%
+      clearMarkers() %>%
+      addMarkers(lng = click$lng, lat = click$lat)
+    plot(vi_datacube()[[1]])
+    plot(curr_click(), add = T)
+    print(doy_dates())
+    output$fitPlot <- renderPlot(curr_plot())
+  })
 }
 
 shinyApp(ui, server)
