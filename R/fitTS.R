@@ -158,34 +158,3 @@ fitTS <- function(prep_dir, out_dir) {
               headeroffset = unique(headeroffset),
               na_val       = unique(na_val)))
 }
-
-.generate_xml <- function(in_xml_file, out_dir) {
-
-  # Check if output xml already extists
-  out_file <- file.path(out_dir, paste0(strsplit(basename(in_xml_file), '_')[[1]][1],
-                                        "_", strsplit(basename(in_xml_file), '_')[[1]][2],
-                                        "_fit.bin.aux.xml"))
-  if(file.exists(out_file)) stop(paste0(basename(in_xml_file)), " already exists.")
-
-  # Read xml
-  out_xml <- xml2::read_xml(in_xml_file)
-
-  return(xml2::write_xml(out_xml, out_file))
-}
-
-.generate_hdr <- function(in_hdr_file, out_dir) {
-
-  # Check if output hdr already exists
-  out_file <- file.path(out_dir, paste0(strsplit(basename(in_hdr_file), '_')[[1]][1],
-                                        "_", strsplit(basename(in_hdr_file), '_')[[1]][2],
-                                        "_fit.hdr"))
-  if(file.exists(out_file)) stop(paste0(basename(in_hdr_file)), " already exists.")
-
-  # read hdr file as dataframe
-  out_hdr <- read.table(in_hdr_file, sep = "\t", stringsAsFactors = FALSE)
-
-  # change description to output path
-  out_hdr[which(grepl('description', out_hdr$V1))[1] + 1, 1] <- paste0(out_file, '}')
-
-  return(write.table(out_hdr, out_file, append = FALSE, quote = FALSE, row.names = FALSE, col.names = FALSE))
-}
