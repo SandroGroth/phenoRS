@@ -3,6 +3,8 @@
 ![Lifecycle:experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg) 
 [![CRAN version](https://www.r-pkg.org/badges/version/phenoRS)](https://CRAN.R-project.org/package=phenoRS)
 [![Build Status](https://travis-ci.org/SandroGroth/phenoRS.svg?branch=master)](https://travis-ci.org//SandroGroth/phenoRS)
+![Last Commit](https://img.shields.io/github/last-commit/SandroGroth/phenoRS/develop)
+![License](https://img.shields.io/github/license/SandroGroth/phenoRS)
 
 R package for automated phenology metrics extraction from remotely sensed data.
 
