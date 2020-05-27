@@ -42,7 +42,15 @@ ui <- dashboardPage(
           textOutput('aoiPathOutput'),
           shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data'),
           textOutput('prepDirOutput'),
-          selectInput('displayViSelect', label = "Display VI", choices = NULL)
+          selectInput('displayViSelect', label = 'Display VI', choices = NULL),
+          fluidRow(
+            column(6,
+              numericInput('maxDataGapNum', label = 'Max. data gap', value = 4, step = 1)
+            ),
+            column(6,
+              numericInput('internalMinNum', label = 'Internal Min.', value = -999, step = 1)
+            )
+          )
         ),
         box(width = NULL, status = "warning",
           h3("2. Outlier removal"),
@@ -96,6 +104,11 @@ server <- function(input, output, session) {
   output$fitPlot <- renderPlot(ggplot())
 
   # reactives ------------------------------------------------------------------------------------------------
+
+  # ---- 0. General Settings ----
+  max_data_gap <- reactive({input$maxDataGapNum})
+
+  internal_min <- reactive({input$internalMinNum})
 
   # ---- 1. Load Data ----
 
@@ -181,74 +194,54 @@ server <- function(input, output, session) {
 
   ### Current click coordinates
   curr_click <- reactive({
-    click <- input$map_click
-    if (!is.null(click)) {
-      sp_click <- SpatialPoints(cbind(click$lng, click$lat), proj4string = CRS("+proj=longlat"))
-      sp_click <- spTransform(sp_click, vi_crs())
-      sp_click
+    if(!is.null(input$map_click)) {
+      SpatialPoints(cbind(input$map_click$lng, input$map_click$lat), proj4string = CRS("+proj=longlat")) %>%
+        spTransform(., vi_crs())
     } else NULL
   })
 
   ## Current Time Series (at click location)
-  curr_vi_ts <- reactive({
-    if (!is.null(vi_datacube()) & !is.null(curr_click())) {
-      extract(vi_datacube(), curr_click()) %>%
-        unname() %>%
-        .[1, ]
-    } else NULL
-  })
-
-  curr_doy_ts <- reactive({
-    if (!is.null(doy_datacube()) & !is.null(curr_click())) {
-      extract(doy_datacube(), curr_click()) %>%
-        unname() %>%
-        .[1, ]
-    } else NULL
-  })
-
-  curr_qa_ts <- reactive({
-    if (!is.null(qa_datacube()) & !is.null(curr_click())) {
-      extract(qa_datacube(), curr_click()) %>%
-        unname() %>%
-        .[1, ]
-    } else NULL
-  })
-
-  # Doy correction
-  doy_df <- reactive({
-    if (!is.null(doy_years()) & !is.null(curr_doy_ts())) {
-      data.frame(years=doy_years(), doys=curr_doy_ts(), stringsAsFactors = F) %>%
-        as.tibble() %>%
-        mutate(
-          years_1 = case_when(
-            !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(years + 1),  # doy > 366 and leap year
-            TRUE ~ years
-          ),
-          doys_1 = case_when(
-            !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(doys - 366), # doy > 366 and leap year
-            TRUE ~ doys
-           )
-        ) %>%
-        mutate(
-          years_2 = case_when(
-            !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(years + 1),  # doy > 365 and no leap year
-            TRUE ~ years_1
-          ),
-          doys_2 = case_when(
-            !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(doys - 365), # doy > 365 and no leap year
-            TRUE ~ doys_1
-          )
-         ) %>%
-        mutate(
+  curr_ts <- reactive({
+    if(!is.null(vi_datacube()) & !is.null(doy_datacube()) & !is.null(qa_datacube()) & !is.null(curr_click)) {
+      list(
+        'vi' = extract(vi_datacube(), curr_click()) %>%
+          unname() %>%
+          .[1, ] %>%
+          check_vi_ts(., max_data_gap(), internal_min()),
+        'dates' = extract(doy_datacube(), curr_click()) %>%
+          unname() %>%
+          .[1, ] %>%
+          check_doy_ts(.) %>%
+          data.frame(years=doy_years(), doys=as.integer(.), stringsAsFactors = F) %>%
+          as.tibble() %>%
+          mutate(
+            years_1 = case_when(
+              !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(years + 1),  # doy > 366 and leap year
+              TRUE ~ years
+            ),
+            doys_1 = case_when(
+              !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(doys - 366), # doy > 366 and leap year
+              TRUE ~ doys
+            )
+          ) %>%
+          mutate(
+            years_2 = case_when(
+              !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(years + 1),  # doy > 365 and no leap year
+              TRUE ~ years_1
+            ),
+            doys_2 = case_when(
+              !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(doys - 365), # doy > 365 and no leap year
+              TRUE ~ doys_1
+            )
+          ) %>%
+          mutate(
             dates = as.Date(paste0(as.character(years_2), as.character(doys_2)), format = "%Y%j")
-         )
-    } else NULL
-  })
-
-  doy_dates <- reactive({
-    if (!is.null(doy_df())) {
-      doy_df() %>%
-        pull(dates)
+          ) %>%
+          pull(dates),
+        'qa' = extract(qa_datacube(), curr_click()) %>%
+          unname() %>%
+          .[1, ]
+      )
     } else NULL
   })
 
@@ -261,8 +254,8 @@ server <- function(input, output, session) {
   })
 
   harm_ts <- reactive({
-    if(!is.null(curr_vi_ts()) & !is.null(doy_dates())) {
-      harmonics_fun(curr_vi_ts(), doy_dates(), n_seasons())
+    if(!is.null(curr_ts())) {
+      harmonics_fun(curr_ts()$vi, curr_ts()$dates, n_seasons())
     }
   })
 
@@ -270,8 +263,8 @@ server <- function(input, output, session) {
 
   ## Current Timeseries Dataframe
   curr_ts_df <- reactive({
-    if (!is.null(curr_vi_ts()) & !is.null(doy_dates())) {
-      data.frame(date=doy_dates(), vi=curr_vi_ts(), vi_harm=harm_ts())
+    if (!is.null(curr_ts())) {
+      data.frame(date=curr_ts()$dates, vi=curr_ts()$vi, vi_harm=harm_ts())
     } else NULL
   })
 
@@ -292,7 +285,6 @@ server <- function(input, output, session) {
   # Add AOI to leaflet map
   observe({
     if (length(aoi_path()) > 0) {
-      print(aoi_path())
       aoi_data <- st_read(aoi_path()) %>%
         st_transform(crs = "+init=epsg:4326")
       bbox <- unname(st_bbox(aoi_data))
@@ -336,13 +328,8 @@ server <- function(input, output, session) {
     leafletProxy('map')%>%
       clearMarkers() %>%
       addMarkers(lng = click$lng, lat = click$lat)
-    plot(vi_datacube()[[1]])
-    plot(curr_click(), add = T)
-    print(doy_dates())
     output$fitPlot <- renderPlot(curr_plot())
   })
-
-  observe({print(n_seasons())})
 }
 
 shinyApp(ui, server)
