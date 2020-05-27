@@ -1,5 +1,6 @@
 library(shiny)
 library(shinyFiles)
+library(shinydashboard)
 library(leaflet)
 library(lubridate)
 library(rgdal)
@@ -13,48 +14,52 @@ library(tibble)
 library(ggplot2)
 library(rHarmonics)
 
-# UI ============================================================================================================
+# UI =========================================================================================================
 
-ui <- fluidPage(
+ui <- dashboardPage(
 
-  # Title ------------------------------------------------------------------------------------------------------
-  titlePanel("Test Curve Fitting"),
+  # Header ---------------------------------------------------------------------------------------------------
+  dashboardHeader(title = "Test Curve Fitting"),
 
-  # Map View ---------------------------------------------------------------------------------------------------
-  fluidRow(
-    column(8,
-      leafletOutput("map"),
-    ),
-    column(4,
-      fluidRow(
-        column(4,
-          shinyFilesButton('aoiFileChoose', label = 'Load AOI', title = 'Select a AOI', multiple = FALSE)
+  # Sidebar --------------------------------------------------------------------------------------------------
+  dashboardSidebar(disable = TRUE),
+
+  # Body -----------------------------------------------------------------------------------------------------
+  dashboardBody(
+    fluidRow(
+      column(8,
+        box(width = NULL, solidHeader = TRUE,
+          leafletOutput("map")
         ),
-        column(8,
-          textOutput('aoiPathOutput')
+        box(width = NULL,
+          plotOutput('fitPlot')
         )
       ),
-      fluidRow(
-        column(4,
-          shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data')
+      column(4,
+        box(width = NULL, status = "warning",
+          h3("1. Load Data"),
+          shinyFilesButton('aoiFileChoose', label = 'Load AOI', title = 'Select a AOI', multiple = FALSE),
+          textOutput('aoiPathOutput'),
+          shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data'),
+          textOutput('prepDirOutput'),
+          selectInput('displayViSelect', label = "Display VI", choices = NULL)
         ),
-        column(8,
-           textOutput('prepDirOutput')
-        )
-      ),
-      fluidRow(
-        selectInput('displayViSelect', label = "Display VI", choices = NULL)
+        box(width = NULL, status = "warning",
+          h3("2. Outlier removal"),
+          checkboxInput('useQaCheck', label = 'Use Quality data', value = FALSE),
+          selectInput('spikeMethodSelect', label = 'Spike Method', choices = c('None', 'Median', 'STL', 'STL_w')),
+          numericInput('spikeValueNum', label = 'Spike Value', value = 2.0, step = 0.1),
+          numericInput('stlStiffnessNum', label = 'STL stiffness', value = 3.0, step = 0.1)
+        ),
+        box(width = NULL, status = "warning",
+          h3("3. Curve Fitting"),
+          numericInput('nSeasons', label = 'Number of Seasons / Year', value = 1, step = 1)
+        ),
+        box(width = NULL, status = "warning",
+          h3("4. Phenology metrics")
+        ),
+        style = "overflow-x: scroll; overflow-y: scroll"
       )
-    )
-  ),
-
-  # Plot View --------------------------------------------------------------------------------------------------
-  fluidRow(
-    column(8,
-      plotOutput('fitPlot')
-    ),
-    column(4,
-      numericInput('nSeasons', label = 'Number of Seasons / Year', value = 1, step = 1)
     )
   )
 )
@@ -90,8 +95,11 @@ server <- function(input, output, session) {
   # Initial Plot
   output$fitPlot <- renderPlot(ggplot())
 
-  # reactives ---------------------------------------------------------------------------------------------------
+  # reactives ------------------------------------------------------------------------------------------------
 
+  # ---- 1. Load Data ----
+
+  ### Input Paths
   aoi_path <- reactive({
     if (!is.null(input$aoiFileChoose)) {
       unname(parseFilePaths(volumes, input$aoiFileChoose)$datapath)
@@ -106,22 +114,23 @@ server <- function(input, output, session) {
 
   vi_paths <- reactive({
     if (!is.null(prep_path())) {
-      list.files(prep_path(), pattern = '.*_(NDVI|EVI)_prep.envi$', full.names = T, no.. = T) #TODO: _prepbin
+      list.files(prep_path(), pattern = '.*_(NDVI|EVI)_prepbin.envi$', full.names = T, no.. = T) #TODO: _prepbin
     } else NULL
   })
 
   doy_paths <- reactive({
     if (!is.null(prep_path())) {
-      list.files(prep_path(), pattern = '.*_DOY_prep.envi$', full.names = T, no.. = T) #TODO: _prepbin
+      list.files(prep_path(), pattern = '.*_DOY_prepbin.envi$', full.names = T, no.. = T) #TODO: _prepbin
     } else NULL
   })
 
   qa_paths <- reactive({
     if (!is.null(prep_path())) {
-      list.files(prep_path(), pattern = '.*_QA_prep.envi$', full.names = T, no.. = T) #TODO: _prepbin
+      list.files(prep_path(), pattern = '.*_QA_prepbin.envi$', full.names = T, no.. = T) #TODO: _prepbin
     } else NULL
   })
 
+  ### Datacubes
   vi_datacube <- reactive({
     if (!is.null(vi_paths())) {
       dc_vi  <- raster::brick(sapply(vi_paths(), function(x) {
@@ -133,20 +142,22 @@ server <- function(input, output, session) {
     } else NULL
   })
 
-  doy_rasters <- reactive({
-    if(!is.null(doy_paths())) {
-      sapply(doy_paths(), function(x) {raster(x)})
+  doy_datacube <- reactive({
+    if (!is.null(doy_paths())) {
+      sapply(doy_paths(), function(x) {raster(x)}) %>%
+        brick()
     } else NULL
   })
 
-  doy_datacube <- reactive({
-    if (!is.null(doy_rasters()) & !is.null(doy_paths())) {
-      brick(doy_rasters())
+  qa_datacube <- reactive({
+    if (!is.null(qa_paths())) {
+      sapply(qa_paths(), function(x) {raster(x)}) %>%
+        brick()
     } else NULL
   })
 
   doy_years <- reactive({
-    if (!is.null(doy_paths()) & !is.null(curr_click())) {
+    if (!is.null(doy_paths())) {
       doy_paths() %>%
         lapply(. %>% {basename(.)}) %>%
         unlist() %>%
@@ -155,51 +166,7 @@ server <- function(input, output, session) {
     } else NULL
   })
 
-  doy_curr_ts <- reactive({
-    if (!is.null(doy_datacube()) &!is.null(doy_paths())) {
-      extract(doy_datacube(), curr_click()) %>%
-        unname() %>%
-        .[1, ]
-    } else NULL
-  })
-
-  doy_df <- reactive({
-    if (!is.null(doy_years()) & !is.null(doy_curr_ts())) {
-      data.frame(years=doy_years(), doys=doy_curr_ts(), stringsAsFactors = F) %>%
-        as.tibble() %>%
-        mutate(
-          years_1 = case_when(
-           !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(years + 1),  # doy > 366 and leap year
-           TRUE ~ years
-          ),
-          doys_1 = case_when(
-           !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(doys - 366), # doy > 366 and leap year
-           TRUE ~ doys
-           )
-        ) %>%
-        mutate(
-          years_2 = case_when(
-           !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(years + 1),  # doy > 365 and no leap year
-           TRUE ~ years_1
-          ),
-          doys_2 = case_when(
-           !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(doys - 365), # doy > 365 and no leap year
-           TRUE ~ doys_1
-          )
-         ) %>%
-        mutate(
-           dates = as.Date(paste0(as.character(years_2), as.character(doys_2)), format = "%Y%j")
-         )
-    } else NULL
-  })
-
-  doy_dates <- reactive({
-    if (!is.null(doy_df())) {
-      doy_df() %>%
-        pull(dates)
-    } else NULL
-  })
-
+  ### Currently displayed VI Layer
   vi_crs <- reactive({
     if (!is.null(vi_datacube())) {
       crs(vi_datacube())
@@ -212,6 +179,7 @@ server <- function(input, output, session) {
     } else NULL
   })
 
+  ### Current click coordinates
   curr_click <- reactive({
     click <- input$map_click
     if (!is.null(click)) {
@@ -221,14 +189,72 @@ server <- function(input, output, session) {
     } else NULL
   })
 
+  ## Current Time Series (at click location)
   curr_vi_ts <- reactive({
-    if (!is.null(curr_click()) & !is.null(vi_datacube)) {
-      # TODO: Check if click is within raster extent
+    if (!is.null(vi_datacube()) & !is.null(curr_click())) {
       extract(vi_datacube(), curr_click()) %>%
         unname() %>%
         .[1, ]
     } else NULL
   })
+
+  curr_doy_ts <- reactive({
+    if (!is.null(doy_datacube()) & !is.null(curr_click())) {
+      extract(doy_datacube(), curr_click()) %>%
+        unname() %>%
+        .[1, ]
+    } else NULL
+  })
+
+  curr_qa_ts <- reactive({
+    if (!is.null(qa_datacube()) & !is.null(curr_click())) {
+      extract(qa_datacube(), curr_click()) %>%
+        unname() %>%
+        .[1, ]
+    } else NULL
+  })
+
+  # Doy correction
+  doy_df <- reactive({
+    if (!is.null(doy_years()) & !is.null(curr_doy_ts())) {
+      data.frame(years=doy_years(), doys=curr_doy_ts(), stringsAsFactors = F) %>%
+        as.tibble() %>%
+        mutate(
+          years_1 = case_when(
+            !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(years + 1),  # doy > 366 and leap year
+            TRUE ~ years
+          ),
+          doys_1 = case_when(
+            !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(doys - 366), # doy > 366 and leap year
+            TRUE ~ doys
+           )
+        ) %>%
+        mutate(
+          years_2 = case_when(
+            !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(years + 1),  # doy > 365 and no leap year
+            TRUE ~ years_1
+          ),
+          doys_2 = case_when(
+            !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(doys - 365), # doy > 365 and no leap year
+            TRUE ~ doys_1
+          )
+         ) %>%
+        mutate(
+            dates = as.Date(paste0(as.character(years_2), as.character(doys_2)), format = "%Y%j")
+         )
+    } else NULL
+  })
+
+  doy_dates <- reactive({
+    if (!is.null(doy_df())) {
+      doy_df() %>%
+        pull(dates)
+    } else NULL
+  })
+
+  # ---- 2. Spike removal ----
+
+  # ---- 3. Curve Fitting ----
 
   n_seasons <- reactive({
     input$nSeasons
@@ -240,12 +266,16 @@ server <- function(input, output, session) {
     }
   })
 
+  # ---- Plot preparation ----
+
+  ## Current Timeseries Dataframe
   curr_ts_df <- reactive({
     if (!is.null(curr_vi_ts()) & !is.null(doy_dates())) {
       data.frame(date=doy_dates(), vi=curr_vi_ts(), vi_harm=harm_ts())
     } else NULL
   })
 
+  ## Current Plot
   curr_plot <- reactive({
     if (!is.null(curr_ts_df())) {
       ggplot(curr_ts_df(), aes(x=date)) +
