@@ -38,26 +38,58 @@ ui <- dashboardPage(
       column(4,
         box(width = NULL, status = "warning",
           h3("1. Load Data"),
-          shinyFilesButton('aoiFileChoose', label = 'Load AOI', title = 'Select a AOI', multiple = FALSE),
-          textOutput('aoiPathOutput'),
-          shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data'),
-          textOutput('prepDirOutput'),
+          fluidRow(style = 'padding:3px;',
+            column(3,
+              shinyFilesButton('aoiFileChoose', label = 'Load AOI', title = 'Select a AOI', multiple = FALSE)
+            ),
+            column(9,
+              textOutput('aoiPathOutput')
+            )
+          ),
+          fluidRow(style = 'padding:3px;',
+            column(3,
+              shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data')
+            ),
+            column(9,
+              textOutput('prepDirOutput')
+            )
+          ),
           selectInput('displayViSelect', label = 'Display VI', choices = NULL),
           fluidRow(
-            column(6,
-              numericInput('maxDataGapNum', label = 'Max. data gap', value = 4, step = 1)
+            column(12/3,
+              numericInput('maxDataGapNum', label = 'Max. data gap', value = 4, min = 0, step = 1)
             ),
-            column(6,
+            column(12/3,
               numericInput('internalMinNum', label = 'Internal Min.', value = -999, step = 1)
+            ),
+            column(12/3,
+              numericInput('pointsPerYearNum', label = 'Points per year', value = 23, min = 0, step = 1)
             )
           )
         ),
         box(width = NULL, status = "warning",
           h3("2. Outlier removal"),
           checkboxInput('useQaCheck', label = 'Use Quality data', value = FALSE),
+          fluidRow(
+            column(12/3,
+              numericInput('wMinNum', label = 'Min. weight', value = 0.0, min = 0.0, max = 1.0, step = 0.1)
+            ),
+            column(12/3,
+              numericInput('wMedNum', label = 'Med. weight', value = 0.5, min = 0.0, max = 1.0, step = 0.1)
+            ),
+            column(12/3,
+              numericInput('wMaxNum', label = 'Max. weight', value = 1.0, min = 0.0, max = 1.0, step = 0.1)
+            )
+          ),
           selectInput('spikeMethodSelect', label = 'Spike Method', choices = c('None', 'Median', 'STL', 'STL_w')),
-          numericInput('spikeValueNum', label = 'Spike Value', value = 2.0, step = 0.1),
-          numericInput('stlStiffnessNum', label = 'STL stiffness', value = 3.0, step = 0.1)
+          fluidRow(
+            column(12/2,
+              numericInput('spikeValueNum', label = 'Spike Value', value = 2.0, step = 0.1)
+            ),
+            column(12/2,
+              numericInput('stlStiffnessNum', label = 'STL stiffness', value = 3.0, step = 0.1)
+            )
+          )
         ),
         box(width = NULL, status = "warning",
           h3("3. Curve Fitting"),
@@ -72,15 +104,15 @@ ui <- dashboardPage(
   )
 )
 
-# Server ========================================================================================================
+# Server =====================================================================================================
 
 server <- function(input, output, session) {
 
-  # Globals -----------------------------------------------------------------------------------------------------
+  # Globals --------------------------------------------------------------------------------------------------
 
   volumes <- getVolumes()
 
-  # init elements -----------------------------------------------------------------------------------------------
+  # init elements --------------------------------------------------------------------------------------------
 
   # AOI File selection
   shinyFileChoose(input, 'aoiFileChoose', roots = volumes, filetypes = c('', 'shp'))
@@ -106,146 +138,180 @@ server <- function(input, output, session) {
   # reactives ------------------------------------------------------------------------------------------------
 
   # ---- 0. General Settings ----
+
   max_data_gap <- reactive({input$maxDataGapNum})
 
   internal_min <- reactive({input$internalMinNum})
+
+  points_per_year <- reactive({input$pointsPerYearNum})
 
   # ---- 1. Load Data ----
 
   ### Input Paths
   aoi_path <- reactive({
-    if (!is.null(input$aoiFileChoose)) {
-      unname(parseFilePaths(volumes, input$aoiFileChoose)$datapath)
-    } else NULL
+    req(input$aoiFileChoose)
+    unname(parseFilePaths(volumes, input$aoiFileChoose)$datapath)
   })
 
   prep_path <- reactive({
-    if (!is.null(input$prepDirChoose)) {
-      unname(parseDirPath(volumes, input$prepDirChoose))
-    } else NULL
+    req(input$prepDirChoose)
+    unname(parseDirPath(volumes, input$prepDirChoose))
   })
 
   vi_paths <- reactive({
-    if (!is.null(prep_path())) {
-      list.files(prep_path(), pattern = '.*_(NDVI|EVI)_prepbin.envi$', full.names = T, no.. = T) #TODO: _prepbin
-    } else NULL
+    req(prep_path())
+    list.files(prep_path(), pattern = '.*_(NDVI|EVI)_prepbin.envi$', full.names = T, no.. = T)
   })
 
   doy_paths <- reactive({
-    if (!is.null(prep_path())) {
-      list.files(prep_path(), pattern = '.*_DOY_prepbin.envi$', full.names = T, no.. = T) #TODO: _prepbin
-    } else NULL
+    req(prep_path())
+    list.files(prep_path(), pattern = '.*_DOY_prepbin.envi$', full.names = T, no.. = T)
   })
 
   qa_paths <- reactive({
-    if (!is.null(prep_path())) {
-      list.files(prep_path(), pattern = '.*_QA_prepbin.envi$', full.names = T, no.. = T) #TODO: _prepbin
-    } else NULL
+    req(prep_path())
+    list.files(prep_path(), pattern = '.*_QA_prepbin.envi$', full.names = T, no.. = T)
   })
 
   ### Datacubes
   vi_datacube <- reactive({
-    if (!is.null(vi_paths())) {
-      dc_vi  <- raster::brick(sapply(vi_paths(), function(x) {
-        r <- raster::raster(x)
-        names(r) <- strsplit(basename(x), '_')[[1]][1]
-        return(r)}))
-      names(dc_vi) <- unlist(lapply(vi_paths(), function (x) {basename(x)}))
-      dc_vi
-    } else NULL
+    req(vi_paths())
+    raster::brick(sapply(vi_paths(), function(x) {
+      r <- raster::raster(x)
+      names(r) <- strsplit(basename(x), '_')[[1]][1]
+      return(r)})) %>%
+      set_names(unlist(lapply(vi_paths(), function (x) {basename(x)})))
   })
 
   doy_datacube <- reactive({
-    if (!is.null(doy_paths())) {
-      sapply(doy_paths(), function(x) {raster(x)}) %>%
-        brick()
-    } else NULL
+    req(doy_paths())
+    sapply(doy_paths(), function(x) {raster(x)}) %>%
+      brick()
   })
 
   qa_datacube <- reactive({
-    if (!is.null(qa_paths())) {
-      sapply(qa_paths(), function(x) {raster(x)}) %>%
-        brick()
-    } else NULL
+    req(qa_paths())
+    sapply(qa_paths(), function(x) {raster(x)}) %>%
+      brick()
   })
 
   doy_years <- reactive({
-    if (!is.null(doy_paths())) {
-      doy_paths() %>%
-        lapply(. %>% {basename(.)}) %>%
-        unlist() %>%
-        substr(1, 4) %>%
-        as.integer()
-    } else NULL
+    req(doy_paths())
+    doy_paths() %>%
+      lapply(. %>% {basename(.)}) %>%
+      unlist() %>%
+      substr(1, 4) %>%
+      as.integer()
   })
 
   ### Currently displayed VI Layer
   vi_crs <- reactive({
-    if (!is.null(vi_datacube())) {
-      crs(vi_datacube())
-    } else NULL
+    req(vi_datacube())
+    crs(vi_datacube())
   })
 
   vi_selected <- reactive({
-    if (!is.null(vi_datacube)) {
-      input$displayViSelect
-    } else NULL
+    req(vi_datacube())
+    input$displayViSelect
   })
 
   ### Current click coordinates
   curr_click <- reactive({
-    if(!is.null(input$map_click)) {
-      SpatialPoints(cbind(input$map_click$lng, input$map_click$lat), proj4string = CRS("+proj=longlat")) %>%
-        spTransform(., vi_crs())
-    } else NULL
+    req(input$map_click)
+    SpatialPoints(cbind(input$map_click$lng, input$map_click$lat), proj4string = CRS("+proj=longlat")) %>%
+      spTransform(., vi_crs())
   })
 
   ## Current Time Series (at click location)
   curr_ts <- reactive({
-    if(!is.null(vi_datacube()) & !is.null(doy_datacube()) & !is.null(qa_datacube()) & !is.null(curr_click)) {
-      list(
-        'vi' = extract(vi_datacube(), curr_click()) %>%
-          unname() %>%
-          .[1, ] %>%
-          check_vi_ts(., max_data_gap(), internal_min()),
-        'dates' = extract(doy_datacube(), curr_click()) %>%
-          unname() %>%
-          .[1, ] %>%
-          check_doy_ts(.) %>%
-          data.frame(years=doy_years(), doys=as.integer(.), stringsAsFactors = F) %>%
-          as.tibble() %>%
-          mutate(
-            years_1 = case_when(
-              !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(years + 1),  # doy > 366 and leap year
-              TRUE ~ years
-            ),
-            doys_1 = case_when(
-              !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(doys - 366), # doy > 366 and leap year
-              TRUE ~ doys
-            )
-          ) %>%
-          mutate(
-            years_2 = case_when(
-              !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(years + 1),  # doy > 365 and no leap year
-              TRUE ~ years_1
-            ),
-            doys_2 = case_when(
-              !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(doys - 365), # doy > 365 and no leap year
-              TRUE ~ doys_1
-            )
-          ) %>%
-          mutate(
-            dates = as.Date(paste0(as.character(years_2), as.character(doys_2)), format = "%Y%j")
-          ) %>%
-          pull(dates),
-        'qa' = extract(qa_datacube(), curr_click()) %>%
-          unname() %>%
-          .[1, ]
-      )
-    } else NULL
+    req(vi_datacube(), doy_datacube(), qa_datacube(), curr_click())
+    list(
+      'vi' = extract(vi_datacube(), curr_click()) %>%
+        unname() %>%
+        .[1, ] %>%
+        check_vi_ts(., max_data_gap(), internal_min()),
+      'dates' = extract(doy_datacube(), curr_click()) %>%
+        unname() %>%
+        .[1, ] %>%
+        check_doy_ts(.) %>%
+        data.frame(years=doy_years(), doys=as.integer(.), stringsAsFactors = F) %>%
+        as.tibble() %>%
+        mutate(
+          years_1 = case_when(
+            !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(years + 1),  # doy > 366 and leap year
+            TRUE ~ years
+          ),
+          doys_1 = case_when(
+            !is.na(doys) & leap_year(years) & doys > 366  ~ as.integer(doys - 366), # doy > 366 and leap year
+            TRUE ~ doys
+          )
+        ) %>%
+        mutate(
+          years_2 = case_when(
+            !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(years + 1),  # doy > 365 and no leap year
+            TRUE ~ years_1
+          ),
+          doys_2 = case_when(
+            !is.na(doys) & !leap_year(years) & doys > 365 ~ as.integer(doys - 365), # doy > 365 and no leap year
+            TRUE ~ doys_1
+          )
+        ) %>%
+        mutate(
+          dates = as.Date(paste0(as.character(years_2), as.character(doys_2)), format = "%Y%j")
+        ) %>%
+        pull(dates),
+      'qa' = extract(qa_datacube(), curr_click()) %>%
+        unname() %>%
+        .[1, ]
+    )
   })
 
   # ---- 2. Spike removal ----
+
+  use_qa <- reactive({input$useQaCheck})
+
+  w_min <- reactive({input$wMinNum})
+
+  w_med <- reactive({input$wMedNum})
+
+  w_max <- reactive({input$wMaxNum})
+
+  spike_method <- reactive({input$spikeMethodSelect})
+
+  spike_value <- reactive({input$spikeValueNum})
+
+  stl_stiffness <- reactive({stlStiffnessNum})
+
+  curr_weights <- reactive({
+    req(curr_ts())
+    if(isTRUE(use_qa())) {
+      switch(spike_method(),
+        'Median' = MODIS_summary_qa(curr_ts()$qa, w_min(), w_med(), w_max()) %>%
+                    spike_median(curr_ts()$vi, ., points_per_year(), w_min(), spike_value()),
+        'STL'    = NULL, # TODO
+        'STL_w'  = NULL, # TODO
+        'None'   = MODIS_summary_qa(curr_ts()$qa, w_min(), w_med(), w_max())
+      )
+    } else {
+      switch(spike_method(),
+        'Median' = rep(w_max(), length(curr_ts()$qa)) %>%
+                    spike_median(curr_ts()$vi, ., points_per_year(), w_min(), spike_value()),
+        'STL'    = NULL,
+        'STL_w'  = NULL,
+        'None'   = rep(w_max(), length(curr_ts()$vi))
+      )
+    }
+  })
+
+  curr_weight_flag <- reactive({
+    req(curr_weights(), curr_ts(), internal_min())
+
+    rep('others', length(curr_weights())) %>%
+      replace(curr_ts()$vi == internal_min(), 'internal min') %>%
+      replace(curr_weights() == w_min(), 'bad') %>%
+      replace(curr_weights() == w_med(), 'marginal') %>%
+      replace(curr_weights() == w_max(), 'good')
+  })
 
   # ---- 3. Curve Fitting ----
 
@@ -254,33 +320,35 @@ server <- function(input, output, session) {
   })
 
   harm_ts <- reactive({
-    if(!is.null(curr_ts())) {
-      harmonics_fun(curr_ts()$vi, curr_ts()$dates, n_seasons())
-    }
+    req(curr_ts(), n_seasons())
+    harmonics_fun(curr_ts()$vi, curr_ts()$dates, n_seasons())
   })
 
   # ---- Plot preparation ----
 
   ## Current Timeseries Dataframe
   curr_ts_df <- reactive({
-    if (!is.null(curr_ts())) {
-      data.frame(date=curr_ts()$dates, vi=curr_ts()$vi, vi_harm=harm_ts())
-    } else NULL
+    req(curr_ts(), curr_weights(), curr_weight_flag(), harm_ts())
+    data.frame(date=curr_ts()$dates,
+               vi=curr_ts()$vi,
+               weights = curr_weights(),
+               weight_flags = curr_weight_flag(),
+               vi_harm=harm_ts())
   })
 
   ## Current Plot
   curr_plot <- reactive({
-    if (!is.null(curr_ts_df())) {
-      ggplot(curr_ts_df(), aes(x=date)) +
-        geom_line(aes(y=vi, colour = "Original")) +
-        geom_line(aes(y=vi_harm, colour = "Harmonic")) +
-        scale_colour_manual("",
-                            breaks = c("Original", "Harmonic"),
-                            values = c("grey", "red"))
-    } else NULL
+    req(curr_ts_df())
+    ggplot(curr_ts_df(), aes(x=date)) +
+      geom_line(aes(y=vi, colour = "Original")) +
+      geom_point(aes(y=vi, colour = weight_flags)) +
+      geom_line(aes(y=vi_harm, colour = "Harmonic")) +
+      scale_colour_manual("",
+                          breaks = c("Original", "Harmonic", "good", "marginal", "bad", "internal_min"),
+                          values = c("grey", "red", "green", "yellow", "red", "orange"))
   })
 
-  # observers ---------------------------------------------------------------------------------------------------
+  # observers ------------------------------------------------------------------------------------------------
 
   # Add AOI to leaflet map
   observe({
@@ -330,6 +398,8 @@ server <- function(input, output, session) {
       addMarkers(lng = click$lng, lat = click$lat)
     output$fitPlot <- renderPlot(curr_plot())
   })
+
+  observe({print(curr_weight_flag())})
 }
 
 shinyApp(ui, server)
