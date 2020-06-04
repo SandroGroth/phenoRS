@@ -3,45 +3,66 @@
 ![Lifecycle:experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg) 
 [![CRAN version](https://www.r-pkg.org/badges/version/phenoRS)](https://CRAN.R-project.org/package=phenoRS)
 [![Build Status](https://travis-ci.org/SandroGroth/phenoRS.svg?branch=master)](https://travis-ci.org//SandroGroth/phenoRS)
+![Last Commit](https://img.shields.io/github/last-commit/SandroGroth/phenoRS/develop)
+![License](https://img.shields.io/github/license/SandroGroth/phenoRS)
+
+----
 
 R package for automated phenology metrics extraction from remotely sensed data.
+
+----
 
 ## Project Status:
 
 - [ ] **Data Aquisition**:
-    - [x] Automatized Download of MODIS Vegetation Index Products:
-        - [x] MOD13Q1 V6
-        - [ ] MOD13A1
-        - [ ] MOD13A2  
-        - [ ] MOD13C1
-        - [ ] MOD13A3
-        - [ ] MOD13C2
-    - [x] Include aria2c bulk downloading
-- [ ] **Data Preprocessing**:
-    - [x] Extraction of data from .hdf archive
-        - [x] NDVI
-        - [x] EVI
-        - [x] QA
-        - [x] DOY
-    - [x] Mosaicing of all tiles with similar DOY
-    - [ ] Inspection of the downloaded records using custom visualizations:
-        - [ ] Viewer with clickable pixels to see Band-Infos at one glance
-        - [ ] Pages to scroll through all acquisitions
-    Clipping images to (non-)rectangular AOI and filling up other values with NA (improves processing time)
+    - [ ] Automatized download of remote sensing products (based on getSpatialData [4] package):
+        - [x] MODIS VI Composites 
+        - [ ] Landsat 4, 5, 7, 8
+        - [ ] Sentinel 2
+    - [x] Downloading options:
+        - [x] aria2c parallelized bulk download
+        - [x] R parallelized download (using doSNOW)
+        - [x] standard download
+        
+- [ ] **Data Extraction and Preparation**:
+    - [x] Supported products:
+        - [x] MOD13Q1 v6
+        - [ ] Landsat 4, 5, 7, 8
+        - [ ] Sentinel 2
+    - Preparation functions (based on GDAL):
+        - [ ] Data extraction:
+            - [x] .hdf -> .tif
+            - [ ] .tar.gz -> .tif
+            - [ ] SAFE -> .tif
+        - [ ] Vegetation Index calculation
+        - [x] Tile mosaicking
+        - [x] Reprojection
+        - [x] AOI Cropping
+        - [x] AOI Masking
+        - [x] Conversion to .envi binary files (for faster processing)
     - [ ] Reading optional Land Use Information to improve Curve fitting (weight assignment)
-    - [ ] Time Series Preprocessing / Curve Fitting:
-        - [ ] Weight assignment using QA-Band
-        - [ ] Spikes / Outliers removal, when:
-            - [ ] it deviates more than a max deviation from the median in a moving window [1]
-            - [ ] its lower than mean value of its neighbors minus cutoff [1]
-            - [ ] its larger than highest value of its neighbor plus cutoff [1]
-        - [ ] Upper envelope adaption using weights
-        - [ ] Number of seasons determination using seasonality parameter
-        - [ ] Support for different fitting methods:
-            - [ ] Savitzky-Golay Filter
-            - [ ] asymetric Gaussian
-            - [ ] Least-square Fits
-    - [ ] Viewer to inspect selected time series curves to assess the success of the curve fitting (good example: <https://github.com/kongdd/phenofit>)
+    
+- [ ] **Time Series Preprocessing / Curve Fitting**:
+    - [ ] Shiny App for interactive selection of fine tuning parameters (in Progress)
+    - [ ] Settings-Management: Reding/Wrtiting settings as .json files. (in Progress)
+    - [ ] Initial weight assignment based on QA Band for:
+        - [x] MOD13Q1 v6 Summary QA
+        - [ ] MOD13Q1 v6 Detailed QA
+        - [ ] Landsat QA
+        - [ ] Sentinel 2 QA
+    - [ ] Outilier-Detection:
+        - [x] QA-Band
+        - [x] Modified Hampel Median Filter [3]
+        - [ ] STL decomposition [1]
+        - [ ] STL * initial weights [2] 
+    - [ ] Seasonalty extraction
+    - [ ] Fitting methods:
+        - [ ] Adaptive Savitzky-Golay Filter
+        - [ ] Asymetric Gaussian
+        - [ ] Double logistic functions
+        - [ ] Harmonic modeling [5]
+    - [ ] Upper envelope adaption
+    
 - [ ] **Phenology Metrics Extraction**:
     - [ ] Start of season (SOS)
     - [ ] End of season (EOS)
@@ -52,7 +73,24 @@ R package for automated phenology metrics extraction from remotely sensed data.
     - [ ] Amplitude
     - [ ] Small integrated value
     - [ ] Large integrated value
+    
+- [ ] **Change Detection**:
+    - tbd
+    
+- [ ] **Output Visualisations**:
+    - tbd
 
 # References
 
-> \[1\] Eklundh, L., and Jönsson, P., 2017, TIMESAT 3.3 with seasonal trend decomposition and parallel processing - Software Manual. Lund University, 92 pp. <http://web.nateko.lu.se/timesat/docs/TIMESAT33_SoftwareManual.pdf>
+> \[1\] Cleveland, R.B., Cleveland, W.S., McRae, J.E., and Terpenning, I., 1990, STL: A Seasonal-Trend Decomposition Procedure Based on Loess. Journal of Official Statistics, 6, 3-73.
+
+> \[2\] Eklundh, L., and Jönsson, P., 2017, TIMESAT 3.3 with seasonal trend decomposition and parallel processing - Software Manual. Lund University, 92 pp. <http://web.nateko.lu.se/timesat/docs/TIMESAT33_SoftwareManual.pdf>.
+
+> \[3\] Hampel F. R.,1974, The influence curve and its role in robust estimation.
+Journal of the American Statistical Association, 69, 382–393.
+
+> \[4\] Schwalb-Willmann, J., 2018, getSpatialData - Get different kinds of freely available
+spatial datasets. R package version 0.0.4. <http://www.github.com/16eagle/getSpatialData/>.
+
+> \[5\] Philipp, M, 2020, rHarmonics- R package for harmonic modelling of time-series data.
+R package version 0.1.0. <http://www.github.com/MBalthasar/rHarmonics/>.

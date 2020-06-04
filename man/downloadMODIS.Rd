@@ -15,7 +15,7 @@ downloadMODIS(gSD_query, out_dir, use_aria = TRUE, do_par = TRUE, cores = NA)
 Requires valid aria2 installation. For help, see \url{https://aria2.github.io/}.
 Default is \code{TRUE}}
 
-\item{do_par}{optional logical. Wheter parallel download should be applied. This parameter is ignored
+\item{do_par}{optional logical. Whether parallel download should be applied. This parameter is ignored
 when \code{use_aria == TRUE}. Default is \code{TRUE}}
 
 \item{cores}{optional integer. Number of cores used for parallel download. If \code{NA}, available

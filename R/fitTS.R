@@ -1,9 +1,9 @@
-fitTS <- function(prep_dir, out_dir) {
+fitTS <- function(prep_dir, out_dir, config) {
 
   # ---- Input Checks ----
 
   # Check if output directory already exists, otherwise create it
-  if (!dir.exists(out_dir)) dir.create(out_dir) else stop("Output directory already exists.")
+  #if (!dir.exists(out_dir)) dir.create(out_dir) else stop("Output directory already exists.")
 
   # ---- Metadata Handling ----
 
@@ -21,7 +21,7 @@ fitTS <- function(prep_dir, out_dir) {
     stop("Number of rows does not match.")
   }
   if (!identical(meta_vi$samples, meta_doy$samples) | !identical(meta_vi$samples, meta_qa$samples)) {
-    stop("Number of columns does not match.")
+    stop("Number of columns do not match.")
   }
 
   n_rows <- meta_vi$lines
@@ -29,25 +29,33 @@ fitTS <- function(prep_dir, out_dir) {
 
   # ---- Datacube Construction ----
 
-  # create connections for byte-streaming the image files
-  bin_vi_files  <- list.files(prep_dir, pattern = '.*_(NDVI|EVI)_.*.bin$', full.names = TRUE, no.. = TRUE)
-  bin_doy_files <- list.files(prep_dir, pattern = '.*_DOY_.*.bin$', full.names = TRUE, no.. = TRUE)
-  bin_qa_files  <- list.files(prep_dir, pattern = '.*_QA_.*.bin$', full.names = TRUE, no.. = TRUE)
+  # list all prepared files
+  bin_vi_files  <- list.files(prep_dir, pattern = '.*_(NDVI|EVI)_.*.envi$', full.names = TRUE, no.. = TRUE)
+  bin_doy_files <- list.files(prep_dir, pattern = '.*_DOY_.*.envi$', full.names = TRUE, no.. = TRUE)
+  bin_qa_files  <- list.files(prep_dir, pattern = '.*_QA_.*.envi$', full.names = TRUE, no.. = TRUE)
+
+  # check if the lengths of the prepared files are equal
+  if (isFALSE(length(unique(c(length(bin_vi_files), length(bin_doy_files), length(bin_qa_files)))) == 1)){
+    stop("Number of subdatasets (VI, DOY, QA) do not match.")
+  }
+
+  # get the base years from the filenames
+  years <- .get_prep_year_str(bin_vi_files)
 
   # create datacubes
   dc_vi  <- raster::brick(sapply(bin_vi_files, function(x) {
     r <- raster::raster(x)
-    names(r) <- strsplit(basename(x), '_')[[1]][1]
+    names(r) <- basename(x)
     return(r)}))
   names(dc_vi) <- unlist(lapply(bin_vi_files, function (x) {strsplit(basename(x), '_')[[1]][1]}))
   dc_doy <- raster::brick(sapply(bin_doy_files, function(x) {
     r <- raster::raster(x)
-    names(r) <- strsplit(basename(x), '_')[[1]][1]
+    names(r) <- basename(x)
     return(r)}))
   names(dc_doy) <- unlist(lapply(bin_doy_files, function (x) {strsplit(basename(x), '_')[[1]][1]}))
   dc_qa  <- raster::brick(sapply(bin_qa_files, function(x) {
     r <- raster::raster(x)
-    names(r) <- strsplit(basename(x), '_')[[1]][1]
+    names(r) <- basename(x)
     return(r)}))
   names(dc_qa) <- unlist(lapply(bin_qa_files, function (x) {strsplit(basename(x), '_')[[1]][1]}))
 
@@ -65,7 +73,7 @@ fitTS <- function(prep_dir, out_dir) {
     # Loop through all pixels of the extrated row
     for (j in 1:n_cols) {
 
-      #logging::logdebug(paste0("Processing col ", j, " of ", n_cols, "..."))
+      logging::logdebug(paste0("Processing col ", j, " of ", n_cols, "..."))
 
       # extract all values from current pixel => 1 time series curve
       pix_vi  <- row_vi[j, ]
@@ -75,25 +83,67 @@ fitTS <- function(prep_dir, out_dir) {
       # Skip curve fitting when whole time series is NA
       if (all(is.na(pix_vi))) next
 
-      print(j)
       # -- Date Extraction / Correction --
-      # TODO: try to fix quick and dirty data wrestling below
-      pix_years <- as.integer(substr(names(pix_doy), 2, 5))
+
+      # load vectors
+      pix_years <- years
       pix_doy <- unname(pix_doy)
-      pix_years[!is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] <- pix_years[
-        !is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] + 1
-      pix_doy[!is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] <- pix_doy[
-        !is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] - 366
-      pix_years[!is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] <- pix_years[
-        !is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] + 1
-      pix_doy[!is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] <- pix_doy[
-        !is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] - 365
+
+      # doy correction
+      # TODO: Make it FAAAST
+      for (d in 1:length(pix_doy)) {
+        if (lubridate::leap_year(pix_years[d])) {
+          if (!is.na(pix_doy[d])) {
+            if (pix_doy[d] > 366) {
+              pix_years[d] + 1
+              pix_doy[d] - 366
+            }
+          }
+        } else {
+          if (!is.na(pix_doy[d])) {
+            if (pix_doy[d] > 365) {
+              pix_years[d] + 1
+              pix_doy[d] - 365
+            }
+          }
+        }
+      }
+
+      # TODO: try to fix quick and dirty data wrestling below
+      # pix_doy[!is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] <- pix_doy[
+      #   !is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] - 366
+      # pix_years[!is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] <- pix_years[
+      #   !is.na(pix_doy) & lubridate::leap_year(pix_years) & pix_doy > 366] + 1
+      # pix_doy[!is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] <- pix_doy[
+      #   !is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] - 365
+      # pix_years[!is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] <- pix_years[
+      #   !is.na(pix_doy) & !lubridate::leap_year(pix_years) & pix_doy > 365] + 1
+
+      # date conversion
       pix_doystr <- paste0(as.character(pix_years), as.character(pix_doy))
       pix_dates <- as.Date(pix_doystr, format = "%Y%j")
 
-      #print(pix_dates)
-      #Sys.sleep(1)
+      # check input timeseries
+      pix_vi <- check_ts(pix_vi, config$general$max_data_gap, config$general$internal_min)
 
+      # weight assignment
+      if (isTRUE(config$use_qa)) {
+        weights <- MODIS_summary_qa(pix_qa)
+      } else {
+        weights <- rep(1, length(pix_vi))
+      }
+
+      # spike removal
+      weights <- switch(config$spike$spike_method,
+        Median = spike_median(pix_vi, weights, config$general$n_val_per_year,
+                              config$weights$w_min, config&spike$spike_value),
+        STL    = spike_stl(),
+        STL_w  = spike_stl_w()
+      )
+
+
+      #Sys.sleep(1)
+      #pix_vi <- rHarmonics::harmonics_fun(pix_vi, pix_dates, 1)
 
       # Overwrite the curve with fitted results
       row_vi[j, ] <- pix_vi
@@ -101,6 +151,13 @@ fitTS <- function(prep_dir, out_dir) {
     }
 
     dc_vi[i, ] <- row_vi
+  }
+  stop()
+  for (i in 1:nlayers(dc_vi)) {
+    out_file <- file.path(out_dir, paste0(strsplit(basename(bin_vi_files[i]), '_')[[1]][1],
+                                                    "_", strsplit(basename(bin_vi_files), '_')[[1]][2],
+                                                    "_fit.bin"))
+    raster::writeRaster(dc_vi[[i]], out_file, format = "ENVI", datatype = "UInt16")
   }
   #plot(dc_vi[[1]])
 }
@@ -152,35 +209,4 @@ fitTS <- function(prep_dir, out_dir) {
               byteorder    = unique(byteorder),
               headeroffset = unique(headeroffset),
               na_val       = unique(na_val)))
-}
-
-.generate_xml <- function(in_xml_file, out_dir) {
-
-  # Check if output xml already extists
-  out_file <- file.path(out_dir, paste0(strsplit(basename(in_xml_file), '_')[[1]][1],
-                                        "_", strsplit(basename(in_xml_file), '_')[[1]][2],
-                                        "_fit.bin.aux.xml"))
-  if(file.exists(out_file)) stop(paste0(basename(in_xml_file)), " already exists.")
-
-  # Read xml
-  out_xml <- xml2::read_xml(in_xml_file)
-
-  return(xml2::write_xml(out_xml, out_file))
-}
-
-.generate_hdr <- function(in_hdr_file, out_dir) {
-
-  # Check if output hdr already exists
-  out_file <- file.path(out_dir, paste0(strsplit(basename(in_hdr_file), '_')[[1]][1],
-                                        "_", strsplit(basename(in_hdr_file), '_')[[1]][2],
-                                        "_fit.hdr"))
-  if(file.exists(out_file)) stop(paste0(basename(in_hdr_file)), " already exists.")
-
-  # read hdr file as dataframe
-  out_hdr <- read.table(in_hdr_file, sep = "\t", stringsAsFactors = FALSE)
-
-  # change description to output path
-  out_hdr[which(grepl('description', out_hdr$V1))[1] + 1, 1] <- paste0(out_file, '}')
-
-  return(write.table(out_hdr, out_file, append = FALSE, quote = FALSE, row.names = FALSE, col.names = FALSE))
 }

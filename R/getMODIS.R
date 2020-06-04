@@ -8,7 +8,7 @@
 #' @param use_aria optional logical. If True, aria2c is used for bulk downloading the selected images.
 #'                 Requires valid aria2 installation. For help, see \url{https://aria2.github.io/}.
 #'                 Default is \code{TRUE}
-#' @param do_par optional logical. Wheter parallel download should be applied. This parameter is ignored
+#' @param do_par optional logical. Whether parallel download should be applied. This parameter is ignored
 #'               when \code{use_aria == TRUE}. Default is \code{TRUE}
 #' @param cores optional integer. Number of cores used for parallel download. If \code{NA}, available
 #'              cores will be detected and used. Ignored when \code{aria2 == TRUE} or

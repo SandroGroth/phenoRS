@@ -62,3 +62,7 @@
     stop("Specified subdataset not supported.")
   )
 }
+
+.get_prep_year_str <- function(files, pos1 = 1, pos2 = 4) {
+  return(as.numeric(substr(basename(files), pos1, pos2)))
+}
