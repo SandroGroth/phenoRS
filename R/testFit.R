@@ -1,3 +1,20 @@
+# library(shiny)
+# library(shinyFiles)
+# library(shinydashboard)
+# library(leaflet)
+# library(lubridate)
+# library(rgdal)
+# library(sf)
+# library(sp)
+# library(raster)
+# library(mapview)
+# library(magrittr)
+# library(dplyr)
+# library(tibble)
+# library(ggplot2)
+# library(rHarmonics)
+
+
 #' @title Test Curve Fitting in GUI.
 #'
 #' @import shiny
@@ -5,18 +22,18 @@
 #' @import shinydashboard
 #' @import leaflet
 #' @importFrom lubridate leap_year
-#' @import rgdal
+#' @importFrom rHarmonics harmonics_fun
+#' @importFrom dplyr pull mutate case_when
+#' @importFrom raster extract raster brick
+#' @importFrom magrittr %>% set_names
 #' @import sf
 #' @import sp
-#' @import raster
 #' @import mapview
-#' @import magrittr
-#' @import dplyr
 #' @import tibble
 #' @import ggplot2
-#' @import rHarmonics
 #'
 #' @export
+#'
 testFIT <- function() {
 
   # UI =========================================================================================================
@@ -326,7 +343,7 @@ testFIT <- function() {
 
     harm_ts <- reactive({
       req(curr_ts(), n_seasons())
-      harmonics_fun(curr_ts()$vi, curr_ts()$dates, n_seasons())
+      rHarmonics::harmonics_fun(curr_ts()$vi, curr_ts()$dates, n_seasons())
     })
 
     # ---- Plot preparation ----

@@ -26,6 +26,7 @@ Imports: doParallel,
           mapview,
           tibble,
           ggplot2,
+          rHarmonics
 Remotes: 16EAGLE/getSpatialData,
          MBalthasar/rHarmonics
 Encoding: UTF-8
