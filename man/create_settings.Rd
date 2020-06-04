@@ -6,6 +6,10 @@
 \usage{
 create_settings(
   data_type = "Int16",
+  n_years = 3,
+  n_val_per_year = 23,
+  internal_min = -999,
+  max_data_gap = 3,
   use_qa = TRUE,
   valid_min = 0,
   valid_max = 10000,
@@ -13,7 +17,7 @@ create_settings(
   weight_med = 0.5,
   weight_max = 1,
   amplitude_cutoff = 0,
-  spike_method = "STL*w",
+  spike_method = "STL_w",
   spike_value = 2,
   stl_stiffness = 3
 )

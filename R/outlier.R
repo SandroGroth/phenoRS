@@ -50,3 +50,13 @@ spike_median <- function(v, w, ypts, w_min=0, spk=2) {
 
   w0
 }
+
+# TODO
+# test_vi <- pix_vi
+# test_vi[is.na(test_vi)] <- -9999
+# test_ts <- ts(test_vi, start = c(2016,1), frequency = 23)
+# plot(test_ts)
+# test_weights <- rep(1, length(test_vi))
+#
+# plot(stl(test_ts, 7))
+
