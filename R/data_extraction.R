@@ -46,3 +46,32 @@ correct_doy <- function(r_obj, comp_year, comp_doy) {
   return(r_obj)
 
 }
+
+#' @title Mosaic tiles with same acquisition date.
+#'
+#' @description TODO
+#' @details TODO
+#'
+#' @param date_str
+#' @param search_dir
+#' @param out_file
+#' @param driver
+#' @param dtype
+#'
+#' @importFrom tools file_ext
+#' @importFrom gdalUtils mosaic_rasters
+#'
+#' @export
+mosaic_tiles <- function(date_str, out_file, search_dir, driver = 'GTiff', dtype = 'SInt16') {
+
+  # search for files with similar date string in search_dir
+  m_files <- list.files(search_dir, pattern = paste0('.\\A', date_str, "\\."), full.names = T, no.. = T) #TODO: support other formats
+  if (length(m_files) == 0) stop("No files for mosaicing found.")
+  if (length(m_files) == 1) {
+    file.rename(from = m_files[1], to = out_file)
+    return(F)
+  }
+
+  mosaic_rasters(m_files, out_file, of = driver, ot = dtype)
+  return(T)
+}
