@@ -51,6 +51,32 @@ spike_median <- function(v, w, ypts, w_min=0, spk=2) {
   w0
 }
 
+#' @title Weights to measurement uncertainties conversion.
+#'
+#' @details This function converts a set of weights, initially determined from the QA parameter of a
+#' timeseries or estimated using an outlier detection method, into measurement uncertainties using following
+#' transformation:
+#' \deqn{\sigma=\frac{1}{w + 0.0001}}
+#'
+#' @param w Numeric vector. A set of weights.
+#'
+#' @return Numeric vector. Measurement uncertainties.
+#'
+#' @examples
+#' w <- c(0, 0.5, 1)
+#' mes_uncertainties(w)
+#'
+#' @author Sandro Groth
+#'
+#' @references Eklundh, L., and Jönsson, P., 2017, TIMESAT 3.3 with seasonal trend decomposition and parallel
+#' processing - Software Manual. Lund University, 92 pp.
+#'
+#' @export
+mes_uncertainties <- function(w) {
+
+  return (1 / w + 0.0001)
+}
+
 # TODO
 # test_vi <- pix_vi
 # test_vi[is.na(test_vi)] <- -9999

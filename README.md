@@ -6,13 +6,13 @@
 ![Last Commit](https://img.shields.io/github/last-commit/SandroGroth/phenoRS/develop)
 ![License](https://img.shields.io/github/license/SandroGroth/phenoRS)
 
-----
 
 R package for automated phenology metrics extraction from remotely sensed data.
 
-----
+:warning: **This package is still in an early state of development and not yet ready to use.**
 
-## Project Status:
+
+# Project Status:
 
 - [ ] **Data Aquisition**:
     - [ ] Automatized download of remote sensing products (based on getSpatialData [4] package):
