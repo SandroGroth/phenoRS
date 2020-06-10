@@ -1,9 +1,9 @@
 #' @title Download MODIS Data
 #'
 #' @description \code{downloadMODIS} downloads MODIS Vegetation Index data queried by
-#'              \link[getSpatialData]{getMODIS_query}.
+#'              \link[getSpatialData]{get_products}.
 #'
-#' @param gSD_query records data.frame. A valid query result returned by \link[getSpatialData]{getMODIS_query}.
+#' @param gSD_query records data.frame. A valid query result returned by \link[getSpatialData]{get_products}.
 #' @param out_dir out_dir character. Full path to download output directory.
 #' @param use_aria optional logical. If True, aria2c is used for bulk downloading the selected images.
 #'                 Requires valid aria2 installation. For help, see \url{https://aria2.github.io/}.
@@ -55,7 +55,7 @@
 #' @importFrom logging loginfo logdebug
 #' @importFrom getSpatialData getMODIS_data
 #'
-#' @seealso \link{prepMODIS} \link[getSpatialData]{getMODIS_query}
+#' @seealso \link{prepMODIS} \link[getSpatialData]{get_products}
 #'
 #' @export
 #'

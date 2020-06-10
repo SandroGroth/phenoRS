@@ -7,7 +7,7 @@
 downloadMODIS(gSD_query, out_dir, use_aria = TRUE, do_par = TRUE, cores = NA)
 }
 \arguments{
-\item{gSD_query}{records data.frame. A valid query result returned by \link[getSpatialData]{getMODIS_query}.}
+\item{gSD_query}{records data.frame. A valid query result returned by \link[getSpatialData]{get_products}.}
 
 \item{out_dir}{out_dir character. Full path to download output directory.}
 
@@ -24,7 +24,7 @@ cores will be detected and used. Ignored when \code{aria2 == TRUE} or
 }
 \description{
 \code{downloadMODIS} downloads MODIS Vegetation Index data queried by
-             \link[getSpatialData]{getMODIS_query}.
+             \link[getSpatialData]{get_products}.
 }
 \details{
 Selected MODIS tiles are downloaded as .hdf archives from the Level-1 and Atmosphere Archive
@@ -63,7 +63,7 @@ Jakob Schwalb-Willmann (2018). getSpatialData: Get different kinds of freely ava
             spatial datasets. R package version 0.0.4. \url{http://www.github.com/16eagle/getSpatialData/}
 }
 \seealso{
-\link{prepMODIS} \link[getSpatialData]{getMODIS_query}
+\link{prepMODIS} \link[getSpatialData]{get_products}
 }
 \author{
 Sandro Groth
