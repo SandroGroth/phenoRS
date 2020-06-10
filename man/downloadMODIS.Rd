@@ -44,13 +44,14 @@ time_range <- c("2017-01-01", "2017-12-31")
 
 ## Login to USGS
 loginUSGS("Username")
+loginEarthData("Username")
 
 ## get available products
-product_names <- getMODIS_names()
+product_names <- get_products("MODIS")
 product <- grep("MOD13Q1", product_names, value = T)
 
 ## Execute query
-query <- getMODIS_query(time_range = time_range, name = product)
+query <- getMODIS_records(time_range = time_range, name = product)
 
 ## Download all selected tiles
 donwloadMODIS(query, "path/to/directory")
