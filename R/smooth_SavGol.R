@@ -4,37 +4,40 @@
 #' Unequally distributed TS:
 #' https://dsp.stackexchange.com/questions/1676/savitzky-golay-smoothing-filter-for-not-equally-spaced-data
 #'
-#' @useDynLib phenoRS
-#' @importFrom Rcpp sourceCpp evalCpp
+#' @importFrom phenofit rcpp_wSG wTSM
 #'
 #' @export
 #'
-smooth_regWSavGol <- function(y, w, ypts, half_win = floor(ypts/7), d = 2, iter = 2) {
+smooth_regWSavGol <- function(y, w, ypts, frame = floor(ypts/7)*2 + 1, d = 2, iters = 2, ...) {
 
-  if(all(is.na(x))) return(y)
+  if(all(is.na(y))) return(y)
+
+  halfwin = floor((frame-1)/2)
 
   y_iter   <- y
-  w_iter   <- w
-  fit <- NULL
+  fits     <- list()
+  ws       <- list()
 
-  for (i in 1:iter) {
+  for (i in 1:iters) {
 
-    # execute fitting
-    fit_new <- rcpp_regWSavGol(y_iter, w_iter, half_win, d)
+    ws[[i]] <- w
+    z <- rcpp_wSG(y_iter, halfwin, d, w)
 
-    # update weights
-    #w_new <- rcpp_updateWeights(y_iter, fit_new, w_iter, i, ypts)
+    w_new <- phenofit:::rcpp_wTSM(y, z, w, i, ypts)
+
 
     # adaption to upper envelope
-    I <- which(y_iter < fit_new)
-    if (length(I) > 0) y_iter[I] <- fit_new[I]
+    I <- which(y_iter < z)
+    if (length(I) > 0) y_iter[I] <- z[I]
 
-    fit <- fit_new
-    w_iter <- w_new
+    fits[[i]] <- z
 
   }
 
-  list(fits=fit, weights=w_iter)
+  fits %<>% set_names(paste0('ziter', 1:iters))
+  ws   %<>% set_names(paste0('witer', 1:iters))
+
+  list(fits=fits, ws=ws)
 
 }
 

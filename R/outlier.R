@@ -29,23 +29,33 @@
 #' ## get the spike filtered weights
 #' filtered_weights <- spike_median(values, init_weights, 20, 0, 2)
 #'
+#' @importFrom Rcpp sourceCpp evalCpp
+#'
+#' @useDynLib phenoRS
+#'
 #' @export
 #'
-spike_median <- function(v, w, ypts, w_min=0, spk=2) {
+spike_median <- function(v, w, ypts, w_min=0, spk=2, cpp = T) {
 
-  n  <- length(v)
-  w0 <- w
-  s  <- round(ypts / 7)
-  k  <- 1.4826
+  if (cpp == F) {
+    n  <- length(v)
+    w0 <- w
+    s  <- round(ypts / 7)
+    k  <- 1.4826
 
-  for (i in seq(s + 1, n - s, 1)) {
-    md <- median(v[(i - s):(i + s)], na.rm = TRUE)
-    me <- mean(c(v[i - 1], v[i + 1]), na.rm = TRUE)
-    mx <- max(c(v[i - 1], v[i + 1]), na.rm = TRUE)
-    ctf <- spk * (k * median(abs(v[(i - s):(i + s)] - md), na.rm = TRUE))
-    if (abs(v[i] - md) > ctf & (v[i] < (me - ctf) | v[i] > (mx + ctf))) {
+    for (i in seq(s + 1, n - s, 1)) {
+      md <- median(v[(i - s):(i + s)], na.rm = TRUE)
+      me <- mean(c(v[i - 1], v[i + 1]), na.rm = TRUE)
+      mx <- max(c(v[i - 1], v[i + 1]), na.rm = TRUE)
+      ctf <- spk * (k * median(abs(v[(i - s):(i + s)] - md), na.rm = TRUE))
+      if (abs(v[i] - md) > ctf & (v[i] < (me - ctf) | v[i] > (mx + ctf))) {
         w0[i] <- w_min
       }
+    }
+  }
+
+  if (cpp == T) {
+    w0 <- rcpp_spikeMedian(v, w, ypts, w_min, spk)
   }
 
   w0
