@@ -28,7 +28,8 @@ Imports: doParallel,
           ggplot2,
           rHarmonics,
           rgdal,
-          Rcpp
+          Rcpp,
+          phenofit
 Remotes: 16EAGLE/getSpatialData,
          MBalthasar/rHarmonics
 Encoding: UTF-8
