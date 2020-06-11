@@ -62,6 +62,7 @@ correct_doy <- function(r_obj, comp_year, comp_doy) {
 #' @importFrom gdalUtils mosaic_rasters
 #'
 #' @export
+#'
 mosaic_tiles <- function(date_str, out_file, search_dir, driver = 'GTiff', dtype = 'SInt16') {
 
   # search for files with similar date string in search_dir
@@ -75,3 +76,70 @@ mosaic_tiles <- function(date_str, out_file, search_dir, driver = 'GTiff', dtype
   mosaic_rasters(m_files, out_file, of = driver, ot = dtype)
   return(T)
 }
+
+#' @title Image Reprojection
+#'
+#' @description TODO
+#' @details TODO
+#'
+#' @importFrom gdalUtils gdalwarp
+#' @importFrom raster raster projectRaster writeRaster
+#'
+#' @export
+#'
+reproject <- function(in_file, out_file, out_proj, driver = 'GTiff', dtype = 'SInt16',
+                      gdal = TRUE, overwrite = TRUE) {
+
+  # check CRS
+  if (!any(c(inherits(out_proj, c("CRS", "sp")),
+            any(grepl('EPSG:', out_proj)),
+            any(grepl('proj=', out_proj)),
+            any(grepl('.prf', out_proj))))) {
+    stop("Non-valid output projection provided.")
+  }
+
+  # execute reprojection
+  if (isTRUE(gdal)){
+    gdalwarp(in_file, out_file, t_srs = out_proj, of = 'GTiff', ot = dtype)
+  } else {
+    r_in <- raster(in_file)
+    r_pj <- projectRaster(r_in, crs = out_proj)
+    writeRaster(r_prj, out_file, datatype = dtype, format = driver, overwrite = overwrite)
+  }
+
+  return(TRUE)
+
+}
+
+#' @title Fast Raster Cropping
+#'
+#' @description TODO
+#' @details TODO
+#'
+#' @importFrom gdalUtils gdalbuildvrt
+#' @importFrom raster extent stack writeRaster
+#'
+#' @export
+#'
+
+
+#' @title Raster Masking
+#'
+#' @description TODO
+#' @details TODO
+#'
+#' @importFrom gdalUtils gdalwarp
+#'
+#' @export
+#'
+
+
+#' @title Raster to ENVI conversion
+#'
+#' @description TODO
+#' @details TODO
+#'
+#' @importFrom gdalUtils gdal_translate
+#'
+#' @export
+#'
