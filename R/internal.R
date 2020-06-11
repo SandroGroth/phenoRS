@@ -66,3 +66,37 @@
 .get_prep_year_str <- function(files, pos1 = 1, pos2 = 4) {
   return(as.numeric(substr(basename(files), pos1, pos2)))
 }
+
+#' On package startup
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.onLoad <- function(libname, pkgname) {
+
+  # internal options
+  op <- options()
+  op.phRS <- list(
+    phRS.gsD = list(
+      api = list(
+        laads = 'https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/'
+        # TODO: Other product sources
+      )
+    ),
+    phRS.supported = list(
+      products = list(
+        MODIS = c('MOD13Q1_V6'), #TODO_ Add more MODIS products
+        Landsat = c(),
+        Sentinel = c()
+      ),
+      VIs = c('NDVI',
+              'EVI')
+    )
+  )
+
+  to_set <- !(names(op.phRS) %in% names(op))
+  if (any(to_set)) options(op.phRS[to_set])
+
+  invisible()
+}
