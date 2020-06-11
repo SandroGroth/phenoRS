@@ -117,11 +117,25 @@ reproject <- function(in_file, out_file, out_proj, driver = 'GTiff', dtype = 'SI
 #' @details TODO
 #'
 #' @importFrom gdalUtils gdalbuildvrt
-#' @importFrom raster extent stack writeRaster
+#' @importFrom raster stack writeRaster
+#'
+#' @references Jakob Schwalb-Willmann and Henrik Fisser (2020). getSpatialData:
+#' Get different kinds of freely available spatial datasets. R package version 0.1.0.
+#' http://www.github.com/16eagle/getSpatialData/
 #'
 #' @export
 #'
+crop_fast <- function(in_file, out_file, aoi_ext, driver = 'GTiff', dtype = 'INT2U') {
 
+  if (!inherits(aoi_ext, c("Extent", "raster"))) stop("AOI extent not of class Extent.")
+
+  tmp_env <- tempfile(fileext = '.vrt')
+  catch <- gdalbuildvrt(in_file, tmp_env, te = c(aoi_ext@xmin, aoi_ext@ymin, aoi_ext@xmax, aoi_ext@ymax))
+  r <- stack(tmp_env)
+  writeRaster(r, out_file, format = driver, datatype = 'INT2U')
+
+  return(TRUE)
+}
 
 #' @title Raster Masking
 #'
@@ -132,7 +146,14 @@ reproject <- function(in_file, out_file, out_proj, driver = 'GTiff', dtype = 'SI
 #'
 #' @export
 #'
+mask_fast <- function(in_file, out_file, aoi, driver = 'GTiff', dtype = 'INT2U') {
 
+  if (!inherits(aoi, "sf")) stop("AOI must be of type sf.")
+
+  gdalwarp(in_file, out_file, cutline = aoi, of = driver, ot = dtype)
+
+  return(TRUE)
+}
 
 #' @title Raster to ENVI conversion
 #'
@@ -140,6 +161,15 @@ reproject <- function(in_file, out_file, out_proj, driver = 'GTiff', dtype = 'SI
 #' @details TODO
 #'
 #' @importFrom gdalUtils gdal_translate
+#' @importFrom tools file_ext
 #'
 #' @export
 #'
+to_envi <- function(in_file, out_file, dtype = 'INT2U', co = 'INTERLEAVE=BIL') {
+
+  if (!file_ext(out_file) == '.envi') stop("Output extension must be .envi")
+
+  gdal_translate(in_file, out_file, of = 'ENVI', ot = dtype, co = co)
+
+  return(TRUE)
+}
