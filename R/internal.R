@@ -67,6 +67,67 @@
   return(as.numeric(substr(basename(files), pos1, pos2)))
 }
 
+.dtype_R_to_GDAL <- function(dtype) {
+  switch(dtype,
+    'INT2S' = 'UInt16',
+    'INT2U' = 'UInt16',
+    'INT4S' = 'SInt32',
+    'INT4U' = 'UInt32',
+    stop("No valid datatype provided.")
+  )
+}
+
+#' Setup progress bar
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.setup_pb <- function(min, max, do_par) {
+
+  progress_b <- list()
+  progress_b$pb <- txtProgressBar(min = min, max = max, style = 3)
+  if (isTRUE(do_par)) {
+    progress <- function(n) setTxtProgressBar(pb, n)
+    progress_b$opts <- list(progress = progress)
+  }
+
+  return(progress_b)
+}
+
+#' Start SNOW parallel processing cluster
+#'
+#' @import parallel
+#' @import doSNOW
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.start_SNOW <- function(cores=NA) {
+
+  if (is.na(cores)) cores <- detectCores()
+  c1 <- makePSOCKcluster(cores)
+  registerDoSNOW(c1)
+
+  return(c1)
+}
+
+#' Stop SNOW parallel processing cluster
+#'
+#' @import parallel
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.stop_SNOW <- function(cluster) {
+
+  stopCluster(cluster)
+
+  return(T)
+}
+
 #' On package startup
 #'
 #' @keywords internal
