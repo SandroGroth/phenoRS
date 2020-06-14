@@ -15,10 +15,12 @@ extract_hdf <- function(hdf, sd, d_type='INT2S') {
   stopifnot("Input file is not of type .hdf" = endsWith(hdf, ".hdf"))
 
   # get available subdatasets from archive
-  sd_names <- get_subdatasets(x)
-  if (length(grep(sd, sd_names, value = T)) == 0) stop("Specified sd not found in .hdf subdatasets.")
+  sd_names <- get_subdatasets(hdf)
+  if (sd == 'DOY') sd <- 'day of the year'
+  if (sd == 'QA') sd <- 'pixel reliability'
+  if (length(grep(sd, sd_names, value = T)) < 1) stop("Specified sd not found in .hdf subdatasets.")
 
-  r_sd <- raster(readGDAL(grep(sd, sd_names, value = T), as.is = T))
+  r_sd <- raster(readGDAL(grep(sd, sd_names, value = T), as.is = T, silent = T))
 
   return(r_sd)
 }
@@ -29,13 +31,12 @@ extract_hdf <- function(hdf, sd, d_type='INT2S') {
 #'
 #' @param r_obj Required raster object. Holds MODIS DOY as integers.
 #' @param comp_year Required integer. Year of the MODIS composite.
-#' @param comp_doy Required integer. DOY of the MODIS composite.
 #'
 #' @importFrom lubridate leap_year
 #'
 #' @export
 #'
-correct_doy <- function(r_obj, comp_year, comp_doy) {
+correct_doy <- function(r_obj, comp_year) {
 
   if (isTRUE(leap_year(comp_year))) {
     r_obj[r_obj < 12] <- r_obj[r_obj < 12] + 366
@@ -92,15 +93,15 @@ reproject <- function(in_file, out_file, out_proj, driver = 'GTiff', dtype = 'SI
 
   # check CRS
   if (!any(c(inherits(out_proj, c("CRS", "sp")),
-            any(grepl('EPSG:', out_proj)),
-            any(grepl('proj=', out_proj)),
-            any(grepl('.prf', out_proj))))) {
+            any(grepl('EPSG:', out_proj@projargs)),
+            any(grepl('proj=', out_proj@projargs)),
+            any(grepl('.prf', out_proj@projargs))))) {
     stop("Non-valid output projection provided.")
   }
 
   # execute reprojection
   if (isTRUE(gdal)){
-    gdalwarp(in_file, out_file, t_srs = out_proj, of = 'GTiff', ot = dtype)
+    gdalwarp(in_file, out_file, t_srs = out_proj@projargs, of = 'GTiff', ot = dtype)
   } else {
     r_in <- raster(in_file)
     r_pj <- projectRaster(r_in, crs = out_proj)
