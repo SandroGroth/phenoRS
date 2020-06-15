@@ -29,7 +29,8 @@ Imports: doParallel,
           rHarmonics,
           rgdal,
           Rcpp,
-          phenofit
+          phenofit,
+          tools
 Remotes: 16EAGLE/getSpatialData,
          MBalthasar/rHarmonics
 Encoding: UTF-8

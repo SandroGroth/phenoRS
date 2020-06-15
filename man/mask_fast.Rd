@@ -4,7 +4,7 @@
 \alias{mask_fast}
 \title{Raster Masking}
 \usage{
-mask_fast(in_file, out_file, aoi, driver = "GTiff", dtype = "INT2U")
+mask_fast(in_file, out_file, aoi, driver = "GTiff", dtype = "Int16")
 }
 \description{
 TODO

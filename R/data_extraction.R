@@ -48,36 +48,6 @@ correct_doy <- function(r_obj, comp_year) {
 
 }
 
-#' @title Mosaic tiles with same acquisition date.
-#'
-#' @description TODO
-#' @details TODO
-#'
-#' @param date_str
-#' @param search_dir
-#' @param out_file
-#' @param driver
-#' @param dtype
-#'
-#' @importFrom tools file_ext
-#' @importFrom gdalUtils mosaic_rasters
-#'
-#' @export
-#'
-mosaic_tiles <- function(date_str, out_file, search_dir, driver = 'GTiff', dtype = 'SInt16') {
-
-  # search for files with similar date string in search_dir
-  m_files <- list.files(search_dir, pattern = paste0('.\\A', date_str, "\\."), full.names = T, no.. = T) #TODO: support other formats
-  if (length(m_files) == 0) stop("No files for mosaicing found.")
-  if (length(m_files) == 1) {
-    file.rename(from = m_files[1], to = out_file)
-    return(F)
-  }
-
-  mosaic_rasters(m_files, out_file, of = driver, ot = dtype)
-  return(T)
-}
-
 #' @title Image Reprojection
 #'
 #' @description TODO
@@ -133,7 +103,7 @@ crop_fast <- function(in_file, out_file, aoi_ext, driver = 'GTiff', dtype = 'INT
   tmp_env <- tempfile(fileext = '.vrt')
   catch <- gdalbuildvrt(in_file, tmp_env, te = c(aoi_ext@xmin, aoi_ext@ymin, aoi_ext@xmax, aoi_ext@ymax))
   r <- stack(tmp_env)
-  writeRaster(r, out_file, format = driver, datatype = 'INT2U')
+  writeRaster(r, out_file, format = driver, datatype = dtype)
 
   return(TRUE)
 }
@@ -147,9 +117,7 @@ crop_fast <- function(in_file, out_file, aoi_ext, driver = 'GTiff', dtype = 'INT
 #'
 #' @export
 #'
-mask_fast <- function(in_file, out_file, aoi, driver = 'GTiff', dtype = 'INT2U') {
-
-  if (!inherits(aoi, "sf")) stop("AOI must be of type sf.")
+mask_fast <- function(in_file, out_file, aoi, driver = 'GTiff', dtype = 'Int16') {
 
   gdalwarp(in_file, out_file, cutline = aoi, of = driver, ot = dtype)
 
@@ -168,7 +136,7 @@ mask_fast <- function(in_file, out_file, aoi, driver = 'GTiff', dtype = 'INT2U')
 #'
 to_envi <- function(in_file, out_file, dtype = 'INT2U', co = 'INTERLEAVE=BIL') {
 
-  if (!file_ext(out_file) == '.envi') stop("Output extension must be .envi")
+  if (!file_ext(out_file) == 'envi') stop("Output extension must be .envi")
 
   gdal_translate(in_file, out_file, of = 'ENVI', ot = dtype, co = co)
 

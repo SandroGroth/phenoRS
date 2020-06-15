@@ -67,12 +67,34 @@
   return(as.numeric(substr(basename(files), pos1, pos2)))
 }
 
+#' Converts R data type to GDAL data type
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
 .dtype_R_to_GDAL <- function(dtype) {
   switch(dtype,
-    'INT2S' = 'UInt16',
+    'INT2S' = 'Int16',
     'INT2U' = 'UInt16',
-    'INT4S' = 'SInt32',
+    'INT4S' = 'Int32',
     'INT4U' = 'UInt32',
+    stop("No valid datatype provided.")
+  )
+}
+
+#' Converts GDAL data type to R data type
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.dtype_GDAL_to_R <- function(dtype) {
+  switch(dtype,
+    'Int16'  = 'INT2S',
+    'UInt16' = 'INT2U',
+    'Int32'  = 'INT4S',
+    'UInt32' = 'INT4U',
     stop("No valid datatype provided.")
   )
 }
