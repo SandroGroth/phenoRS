@@ -1,9 +1,9 @@
 #' @title Download MODIS Data
 #'
 #' @description \code{downloadMODIS} downloads MODIS Vegetation Index data queried by
-#'              \link[getSpatialData]{getMODIS_query}.
+#'              \link[getSpatialData]{get_products}.
 #'
-#' @param gSD_query records data.frame. A valid query result returned by \link[getSpatialData]{getMODIS_query}.
+#' @param gSD_query records data.frame. A valid query result returned by \link[getSpatialData]{get_products}.
 #' @param out_dir out_dir character. Full path to download output directory.
 #' @param use_aria optional logical. If True, aria2c is used for bulk downloading the selected images.
 #'                 Requires valid aria2 installation. For help, see \url{https://aria2.github.io/}.
@@ -36,13 +36,14 @@
 #'
 #' ## Login to USGS
 #' loginUSGS("Username")
+#' loginEarthData("Username")
 #'
 #' ## get available products
-#' product_names <- getMODIS_names()
+#' product_names <- get_products("MODIS")
 #' product <- grep("MOD13Q1", product_names, value = T)
 #'
 #' ## Execute query
-#' query <- getMODIS_query(time_range = time_range, name = product)
+#' query <- getMODIS_records(time_range = time_range, name = product)
 #'
 #' ## Download all selected tiles
 #' donwloadMODIS(query, "path/to/directory")
@@ -54,7 +55,7 @@
 #' @importFrom logging loginfo logdebug
 #' @importFrom getSpatialData getMODIS_data
 #'
-#' @seealso \link{prepMODIS} \link[getSpatialData]{getMODIS_query}
+#' @seealso \link{prepMODIS} \link[getSpatialData]{get_products}
 #'
 #' @export
 #'

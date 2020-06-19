@@ -5,23 +5,24 @@
 
 using namespace Rcpp;
 
-// rcpp_regWSavGol
-int rcpp_regWSavGol(NumericVector y, NumericVector w, int halfwin, int d);
-RcppExport SEXP _phenoRS_rcpp_regWSavGol(SEXP ySEXP, SEXP wSEXP, SEXP halfwinSEXP, SEXP dSEXP) {
+// rcpp_spikeMedian
+NumericVector rcpp_spikeMedian(const NumericVector y, const NumericVector w, const int ypts, const int w_min, const int spk);
+RcppExport SEXP _phenoRS_rcpp_spikeMedian(SEXP ySEXP, SEXP wSEXP, SEXP yptsSEXP, SEXP w_minSEXP, SEXP spkSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type w(wSEXP);
-    Rcpp::traits::input_parameter< int >::type halfwin(halfwinSEXP);
-    Rcpp::traits::input_parameter< int >::type d(dSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_regWSavGol(y, w, halfwin, d));
+    Rcpp::traits::input_parameter< const NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< const NumericVector >::type w(wSEXP);
+    Rcpp::traits::input_parameter< const int >::type ypts(yptsSEXP);
+    Rcpp::traits::input_parameter< const int >::type w_min(w_minSEXP);
+    Rcpp::traits::input_parameter< const int >::type spk(spkSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_spikeMedian(y, w, ypts, w_min, spk));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_phenoRS_rcpp_regWSavGol", (DL_FUNC) &_phenoRS_rcpp_regWSavGol, 4},
+    {"_phenoRS_rcpp_spikeMedian", (DL_FUNC) &_phenoRS_rcpp_spikeMedian, 5},
     {NULL, NULL, 0}
 };
 

@@ -4,7 +4,7 @@
 \alias{spike_median}
 \title{Modified Hampel Median Filter.}
 \usage{
-spike_median(v, w, ypts, w_min = 0, spk = 2)
+spike_median(v, w, ypts, w_min = 0, spk = 2, cpp = T)
 }
 \arguments{
 \item{v}{numeric vector. Vegetation index values.}

@@ -66,3 +66,120 @@
 .get_prep_year_str <- function(files, pos1 = 1, pos2 = 4) {
   return(as.numeric(substr(basename(files), pos1, pos2)))
 }
+
+#' Converts R data type to GDAL data type
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.dtype_R_to_GDAL <- function(dtype) {
+  switch(dtype,
+    'INT2S' = 'Int16',
+    'INT2U' = 'UInt16',
+    'INT4S' = 'Int32',
+    'INT4U' = 'UInt32',
+    stop("No valid datatype provided.")
+  )
+}
+
+#' Converts GDAL data type to R data type
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.dtype_GDAL_to_R <- function(dtype) {
+  switch(dtype,
+    'Int16'  = 'INT2S',
+    'UInt16' = 'INT2U',
+    'Int32'  = 'INT4S',
+    'UInt32' = 'INT4U',
+    stop("No valid datatype provided.")
+  )
+}
+
+#' Setup progress bar
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.setup_pb <- function(min, max, do_par) {
+
+  progress_b <- list()
+  progress_b$pb <- txtProgressBar(min = min, max = max, style = 3)
+  if (isTRUE(do_par)) {
+    progress <- function(n) setTxtProgressBar(pb, n)
+    progress_b$opts <- list(progress = progress)
+  }
+
+  return(progress_b)
+}
+
+#' Start SNOW parallel processing cluster
+#'
+#' @import parallel
+#' @import doSNOW
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.start_SNOW <- function(cores=NA) {
+
+  if (is.na(cores)) cores <- detectCores()
+  c1 <- makePSOCKcluster(cores)
+  registerDoSNOW(c1)
+
+  return(c1)
+}
+
+#' Stop SNOW parallel processing cluster
+#'
+#' @import parallel
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.stop_SNOW <- function(cluster) {
+
+  stopCluster(cluster)
+
+  return(T)
+}
+
+#' On package startup
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.onLoad <- function(libname, pkgname) {
+
+  # internal options
+  op <- options()
+  op.phRS <- list(
+    phRS.gsD = list(
+      api = list(
+        laads = 'https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/'
+        # TODO: Other product sources
+      )
+    ),
+    phRS.supported = list(
+      products = list(
+        MODIS = c('MOD13Q1_V6'), #TODO_ Add more MODIS products
+        Landsat = c(),
+        Sentinel = c()
+      ),
+      VIs = c('NDVI',
+              'EVI')
+    )
+  )
+
+  to_set <- !(names(op.phRS) %in% names(op))
+  if (any(to_set)) options(op.phRS[to_set])
+
+  invisible()
+}

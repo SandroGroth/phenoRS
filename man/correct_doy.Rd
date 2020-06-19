@@ -4,14 +4,12 @@
 \alias{correct_doy}
 \title{Correct DOY layer of extracted MODIS raster objects.}
 \usage{
-correct_doy(r_obj, comp_year, comp_doy)
+correct_doy(r_obj, comp_year)
 }
 \arguments{
 \item{r_obj}{Required raster object. Holds MODIS DOY as integers.}
 
 \item{comp_year}{Required integer. Year of the MODIS composite.}
-
-\item{comp_doy}{Required integer. DOY of the MODIS composite.}
 }
 \description{
 TODO
