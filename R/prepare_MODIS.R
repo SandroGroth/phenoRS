@@ -24,7 +24,7 @@
 #'
 #' @author Sandro Groth
 #'
-#' @examples TODO
+#' @examples \dontrun{TODO}
 #'
 #' @seealso TODO
 #'
@@ -179,6 +179,13 @@ prepare_MODIS <- function(in_dir, out_dir, aoi, vi = 'NDVI', product_name = NA, 
         }
         if (isTRUE(progress)) close(progb$pb)
       }
+    } else {
+      loginfo("Only one unique tile found. Mosaicing skipped.")
+      for (f in 1:length(img_files)) {
+        date_str <- .getMODIS_datestr(.getMODIS_date(basename(img_files[f])))
+        out_file <- file.path(orig_dir, paste0(date_str, "_", sds[i], "_mosaic.tif"))
+        file.rename(from = img_files[f], to = out_file)
+      }
     }
   }
   prep_status <- 'MOSAIC'
@@ -329,7 +336,7 @@ prepare_MODIS <- function(in_dir, out_dir, aoi, vi = 'NDVI', product_name = NA, 
       out_file <- file.path(out_dir, paste0(strsplit(basename(img_files[f]), '_')[[1]][1],
                                             "_", strsplit(basename(img_files[f]), '_')[[1]][2],
                                             "_prepbin.envi"))
-      to_envi(img_files[f], out_file, dtype = dtype)
+      to_envi(img_files[f], out_file, dtype = .dtype_R_to_GDAL(dtype))
     }
     if (isTRUE(progress)) close(progb$pb)
     .stop_SNOW(c1)
@@ -338,7 +345,7 @@ prepare_MODIS <- function(in_dir, out_dir, aoi, vi = 'NDVI', product_name = NA, 
       out_file <- file.path(out_dir, paste0(strsplit(basename(img_files[f]), '_')[[1]][1],
                                             "_", strsplit(basename(img_files[f]), '_')[[1]][2],
                                             "_prepbin.envi"))
-      to_envi(img_files[f], out_file, dtype = dtype)
+      to_envi(img_files[f], out_file, dtype = .dtype_R_to_GDAL(dtype))
       if (isTRUE(progress)) setTxtProgressBar(progb$pb, f)
     }
     if (isTRUE(progress)) close(progb$pb)

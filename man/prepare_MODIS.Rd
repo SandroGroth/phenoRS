@@ -61,7 +61,7 @@ for curve fitting.
 TODO
 }
 \examples{
-TODO
+\dontrun{TODO}
 
 }
 \seealso{

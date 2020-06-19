@@ -20,9 +20,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rcpp_wTSM
+NumericVector rcpp_wTSM(NumericVector y, NumericVector yfit, NumericVector w, int iter, int nptperyear, double wfact);
+RcppExport SEXP _phenoRS_rcpp_wTSM(SEXP ySEXP, SEXP yfitSEXP, SEXP wSEXP, SEXP iterSEXP, SEXP nptperyearSEXP, SEXP wfactSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type yfit(yfitSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type w(wSEXP);
+    Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
+    Rcpp::traits::input_parameter< int >::type nptperyear(nptperyearSEXP);
+    Rcpp::traits::input_parameter< double >::type wfact(wfactSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_wTSM(y, yfit, w, iter, nptperyear, wfact));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_phenoRS_rcpp_spikeMedian", (DL_FUNC) &_phenoRS_rcpp_spikeMedian, 5},
+    {"_phenoRS_rcpp_wTSM", (DL_FUNC) &_phenoRS_rcpp_wTSM, 6},
     {NULL, NULL, 0}
 };
 
