@@ -5,6 +5,9 @@
 #' https://dsp.stackexchange.com/questions/1676/savitzky-golay-smoothing-filter-for-not-equally-spaced-data
 #'
 #' @importFrom phenofit rcpp_wSG wTSM
+#' @importFrom Rcpp evalCpp sourceCpp
+#'
+#' @useDynLib phenoRS
 #'
 #' @export
 #'
@@ -23,7 +26,7 @@ smooth_regWSavGol <- function(y, w, ypts, frame = floor(ypts/7)*2 + 1, d = 2, it
     ws[[i]] <- w
     z <- rcpp_wSG(y_iter, halfwin, d, w)
 
-    w_new <- phenofit:::rcpp_wTSM(y, z, w, i, ypts)
+    w_new <- rcpp_wTSM(y, z, w, i, ypts)
 
 
     # adaption to upper envelope
