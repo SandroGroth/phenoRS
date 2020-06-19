@@ -336,7 +336,7 @@ prepare_MODIS <- function(in_dir, out_dir, aoi, vi = 'NDVI', product_name = NA, 
       out_file <- file.path(out_dir, paste0(strsplit(basename(img_files[f]), '_')[[1]][1],
                                             "_", strsplit(basename(img_files[f]), '_')[[1]][2],
                                             "_prepbin.envi"))
-      to_envi(img_files[f], out_file, dtype = dtype)
+      to_envi(img_files[f], out_file, dtype = .dtype_R_to_GDAL(dtype))
     }
     if (isTRUE(progress)) close(progb$pb)
     .stop_SNOW(c1)
@@ -345,7 +345,7 @@ prepare_MODIS <- function(in_dir, out_dir, aoi, vi = 'NDVI', product_name = NA, 
       out_file <- file.path(out_dir, paste0(strsplit(basename(img_files[f]), '_')[[1]][1],
                                             "_", strsplit(basename(img_files[f]), '_')[[1]][2],
                                             "_prepbin.envi"))
-      to_envi(img_files[f], out_file, dtype = dtype)
+      to_envi(img_files[f], out_file, dtype = .dtype_R_to_GDAL(dtype))
       if (isTRUE(progress)) setTxtProgressBar(progb$pb, f)
     }
     if (isTRUE(progress)) close(progb$pb)
