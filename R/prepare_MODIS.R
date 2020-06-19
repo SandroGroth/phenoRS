@@ -179,6 +179,13 @@ prepare_MODIS <- function(in_dir, out_dir, aoi, vi = 'NDVI', product_name = NA, 
         }
         if (isTRUE(progress)) close(progb$pb)
       }
+    } else {
+      loginfo("Only one unique tile found. Mosaicing skipped.")
+      for (f in 1:length(img_files)) {
+        date_str <- .getMODIS_datestr(basename(img_files[f]))
+        out_file <- file.path(orig_dir, paste0(date_str, "_", vi, "_mosaic.tif"))
+        file.rename(from = img_files[f], to = out_file)
+      }
     }
   }
   prep_status <- 'MOSAIC'
