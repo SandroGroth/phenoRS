@@ -24,7 +24,7 @@
 #'
 #' @author Sandro Groth
 #'
-#' @examples TODO
+#' @examples \dontrun{TODO}
 #'
 #' @seealso TODO
 #'
