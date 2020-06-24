@@ -1,3 +1,7 @@
+#' @title Check VI timeseries
+#'
+#' @export
+#'
 check_vi_ts <- function(v, max_data_gap, internal_min) {
 
   # Interpolate NA value, when the data gap is not greater than specified
@@ -9,6 +13,10 @@ check_vi_ts <- function(v, max_data_gap, internal_min) {
   v
 }
 
+#' @title Check DOY timeseries
+#'
+#' @export
+#'
 check_doy_ts <- function(d) {
 
   # Interpolate NA value

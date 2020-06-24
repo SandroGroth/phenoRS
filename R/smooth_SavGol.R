@@ -11,7 +11,7 @@
 #'
 #' @export
 #'
-smooth_regWSavGol <- function(y, w, ypts, frame = floor(ypts/7)*2 + 1, d = 2, iters = 2, ...) {
+smooth_regWSavGol <- function(y, w, ypts, frame = floor(ypts/7)*2 + 1, d = 2, iters = 2, w_fact=2) {
 
   if(all(is.na(y))) return(y)
 
@@ -26,7 +26,7 @@ smooth_regWSavGol <- function(y, w, ypts, frame = floor(ypts/7)*2 + 1, d = 2, it
     ws[[i]] <- w
     z <- rcpp_wSG(y_iter, halfwin, d, w)
 
-    w_new <- rcpp_wTSM(y, z, w, i, ypts)
+    w_new <- rcpp_wTSM(y, z, w, i, ypts, w_fact)
 
 
     # adaption to upper envelope
