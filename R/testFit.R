@@ -1,18 +1,19 @@
-# library(shiny)
-# library(shinyFiles)
-# library(shinydashboard)
-# library(leaflet)
-# library(lubridate)
-# library(rgdal)
-# library(sf)
-# library(sp)
-# library(raster)
-# library(mapview)
-# library(magrittr)
-# library(dplyr)
-# library(tibble)
-# library(ggplot2)
-# library(rHarmonics)
+library(shiny)
+library(shinyFiles)
+library(shinydashboard)
+library(shinycssloaders)
+library(leaflet)
+library(lubridate)
+library(rgdal)
+library(sf)
+library(sp)
+library(raster)
+library(mapview)
+library(magrittr)
+library(dplyr)
+library(tibble)
+library(ggplot2)
+library(rHarmonics)
 
 
 #' @title Test Curve Fitting in GUI.
@@ -26,6 +27,9 @@
 #' @importFrom dplyr pull mutate case_when
 #' @importFrom raster extract raster brick
 #' @importFrom magrittr %>% set_names
+#' @importFrom shinycssloaders withSpinner
+#' @importFrom shinyjs useShinyjs hide show hidden toggle toggleElement
+#' @importFrom shinydashboardPlus boxPad
 #' @import sf
 #' @import sp
 #' @import mapview
@@ -48,79 +52,131 @@ testFIT <- function() {
 
     # Body -----------------------------------------------------------------------------------------------------
     dashboardBody(
+      useShinyjs(),
       fluidRow(
         column(8,
           box(width = NULL, solidHeader = TRUE,
-            leafletOutput("map")
-          ),
-          box(width = NULL,
-            plotOutput('fitPlot')
+             plotOutput('fitPlot') %>%
+               withSpinner(color="#0dc5c1")
           )
         ),
         column(4,
+          box(width = NULL, solidHeader = TRUE,
+             leafletOutput("map") %>%
+               withSpinner(color="#0dc5c1")
+          )
+        )
+      ),
+      fluidRow(
+        column(12/4,
           box(width = NULL, status = "warning",
-            h3("1. Load Data"),
-            fluidRow(style = 'padding:3px;',
-              column(3,
-                shinyFilesButton('aoiFileChoose', label = 'Load AOI', title = 'Select a AOI', multiple = FALSE)
-              ),
-              column(9,
-                textOutput('aoiPathOutput')
-              )
-            ),
-            fluidRow(style = 'padding:3px;',
-              column(3,
-                shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data')
-              ),
-              column(9,
-                textOutput('prepDirOutput')
-              )
-            ),
-            selectInput('displayViSelect', label = 'Display VI', choices = NULL),
-            fluidRow(
-              column(12/3,
-                numericInput('maxDataGapNum', label = 'Max. data gap', value = 4, min = 0, step = 1)
-              ),
-              column(12/3,
-                numericInput('internalMinNum', label = 'Internal Min.', value = -999, step = 1)
-              ),
-              column(12/3,
-                numericInput('pointsPerYearNum', label = 'Points per year', value = 23, min = 0, step = 1)
-              )
-            )
-          ),
+             h3("1. Load Data"),
+             fluidRow(style = 'padding:3px;',
+                      column(3,
+                             shinyFilesButton('aoiFileChoose', label = 'Load AOI', title = 'Select a AOI', multiple = FALSE)
+                      ),
+                      column(9,
+                             textOutput('aoiPathOutput')
+                      )
+             ),
+             fluidRow(style = 'padding:3px;',
+                      column(3,
+                             shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data')
+                      ),
+                      column(9,
+                             textOutput('prepDirOutput') %>%
+                               withSpinner(color="#0dc5c1", size = 0.3, proxy.height = "50px")
+                      )
+             ),
+             selectInput('displayViSelect', label = 'Display VI', choices = NULL),
+             fluidRow(
+               column(12/3,
+                      numericInput('maxDataGapNum', label = 'Max. data gap', value = 4, min = 0, step = 1)
+               ),
+               column(12/3,
+                      numericInput('internalMinNum', label = 'Internal Min.', value = -999, step = 1)
+               ),
+               column(12/3,
+                      numericInput('pointsPerYearNum', label = 'Points per year', value = 23, min = 0, step = 1)
+               )
+             )
+          )
+        ),
+        column(12/4,
           box(width = NULL, status = "warning",
             h3("2. Outlier removal"),
             checkboxInput('useQaCheck', label = 'Use Quality data', value = FALSE),
             fluidRow(
               column(12/3,
-                numericInput('wMinNum', label = 'Min. weight', value = 0.0, min = 0.0, max = 1.0, step = 0.1)
+                     numericInput('wMinNum', label = 'Min. weight', value = 0.0, min = 0.0, max = 1.0, step = 0.1)
               ),
               column(12/3,
-                numericInput('wMedNum', label = 'Med. weight', value = 0.5, min = 0.0, max = 1.0, step = 0.1)
+                     numericInput('wMedNum', label = 'Med. weight', value = 0.5, min = 0.0, max = 1.0, step = 0.1)
               ),
               column(12/3,
-                numericInput('wMaxNum', label = 'Max. weight', value = 1.0, min = 0.0, max = 1.0, step = 0.1)
+                     numericInput('wMaxNum', label = 'Max. weight', value = 1.0, min = 0.0, max = 1.0, step = 0.1)
               )
             ),
             selectInput('spikeMethodSelect', label = 'Spike Method', choices = c('None', 'Median', 'STL', 'STL_w')),
-            fluidRow(
-              column(12/2,
-                numericInput('spikeValueNum', label = 'Spike Value', value = 2.0, step = 0.1)
-              ),
-              column(12/2,
-                numericInput('stlStiffnessNum', label = 'STL stiffness', value = 3.0, step = 0.1)
-              )
+            hidden(
+              numericInput('spikeValueNum', label = 'Spike Value', value = 2.0, step = 0.1)
+            ),
+            hidden(
+              numericInput('stlStiffnessNum', label = 'STL stiffness', value = 3.0, step = 0.1)
             )
-          ),
+          )
+        ),
+        column(12/4,
           box(width = NULL, status = "warning",
             h3("3. Curve Fitting"),
-            numericInput('nSeasons', label = 'Number of Seasons / Year', value = 1, step = 1)
-          ),
+            h4("Fitting Methods: "),
+            fluidRow(
+              column(12/3,
+                checkboxInput('harmModCheck', label = 'Harmonic Modeling', value = FALSE)
+              ),
+              column(12/3,
+                checkboxInput('savGolCheck', label = 'Adapt. Sav. Gol.', value = FALSE)
+              ),
+              column(12/3,
+                checkboxInput('asymGaussCheck', label = 'Asymmetric Gauss', value = FALSE)
+              )
+            ),
+            hidden(
+              boxPad(id = 'harmModParamPad', color = 'gray',
+                span("Harmonic Modeling: "),
+                numericInput('nSeasonsNum', label = 'Number of seasons per year', value = 1)
+              )
+            ),
+            hidden(
+              boxPad(id = 'savGolParamPad', color = 'gray',
+                span("Adaptive Savitzky-Golay Filter: "),
+                fluidRow(
+                  column(12/2,
+                    numericInput('winSizeNum', label = 'Window size', value = 7)
+                  ),
+                  column(12/2,
+                    numericInput('polyDegNum', label = 'Polynomial degree', value = 2)
+                  )
+                ),
+                checkboxInput('upperEnvCheck', label = 'Adaption to upper envelope', value = FALSE),
+                hidden(
+                  fluidRow(id = 'upperEnvParamRow',
+                    column(12/2,
+                      numericInput('nIterNum', label = 'Iterations', value = 1, min = 1, step = 1)
+                    ),
+                    column(12/2,
+                      numericInput('wFactNum', label = 'Weight update factor', value = 2, min = 1, step = 1)
+                    )
+                  )
+                )
+              )
+            )
+          )
+        ),
+        column(12/4,
           box(width = NULL, status = "warning",
-            h3("4. Phenology metrics")
-          ),
-          style = "overflow-x: scroll; overflow-y: scroll"
+             h3("4. Phenology metrics")
+          )
         )
       )
     )
@@ -198,23 +254,71 @@ testFIT <- function() {
     ### Datacubes
     vi_datacube <- reactive({
       req(vi_paths())
-      raster::brick(sapply(vi_paths(), function(x) {
-        r <- raster::raster(x)
-        names(r) <- strsplit(basename(x), '_')[[1]][1]
-        return(r)})) %>%
-        set_names(unlist(lapply(vi_paths(), function (x) {basename(x)})))
+
+      s <- raster::brick()
+      n <- length(vi_paths())
+
+      withProgress(message = "Building VI data cube...", {
+        for (i in 1:n) {
+          r <- readAll(raster::raster(vi_paths()[i]))
+          names(r) <- strsplit(basename(vi_paths()[i]), '_')[[1]][1]
+          s <- addLayer(s, r)
+          incProgress(1/n)
+        }
+      })
+
+      s <- set_names(s, unlist(lapply(vi_paths(), function (x) {basename(x)})))
+      readAll(s)
+
+      #raster::brick(sapply(vi_paths(), function(x) {
+      #  r <- raster::raster(x)
+      #  names(r) <- strsplit(basename(x), '_')[[1]][1]
+      #  return(r)})) %>%
+      #  set_names(unlist(lapply(vi_paths(), function (x) {basename(x)})))
     })
 
     doy_datacube <- reactive({
       req(doy_paths())
-      sapply(doy_paths(), function(x) {raster(x)}) %>%
-        brick()
+
+      s <- raster::brick()
+      n <- length(doy_paths())
+
+      withProgress(message = "Building DOY data cube...", {
+        for (i in 1:n) {
+          r <- readAll(raster::raster(doy_paths()[i]))
+          names(r) <- strsplit(basename(doy_paths()[i]), '_')[[1]][1]
+          s <- addLayer(s, r)
+          incProgress(1/n)
+        }
+      })
+
+      s <- set_names(s, unlist(lapply(doy_paths(), function(x) {basename(x)})))
+      s
+
+      #sapply(doy_paths(), function(x) {raster(x)}) %>%
+      #  brick()
     })
 
     qa_datacube <- reactive({
       req(qa_paths())
-      sapply(qa_paths(), function(x) {raster(x)}) %>%
-        brick()
+
+      s <- raster::brick()
+      n <- length(qa_paths())
+
+      withProgress(message = "Building QA data cube...", {
+        for (i in 1:n) {
+          r <- readAll(raster::raster(qa_paths()[i]))
+          names(r) <- strsplit(basename(qa_paths()[i]), '_')[[1]][1]
+          s <- addLayer(s, r)
+          incProgress(1/n)
+        }
+      })
+
+      s <- set_names(s, unlist(lapply(qa_paths(), function(x) {basename(x)})))
+      s
+
+      #sapply(qa_paths(), function(x) {raster(x)}) %>%
+      #  brick()
     })
 
     doy_years <- reactive({
@@ -240,6 +344,7 @@ testFIT <- function() {
     ### Current click coordinates
     curr_click <- reactive({
       req(input$map_click)
+      print("Getting click ccordinates")
       SpatialPoints(cbind(input$map_click$lng, input$map_click$lat), proj4string = CRS("+proj=longlat")) %>%
         spTransform(., vi_crs())
     })
@@ -309,7 +414,7 @@ testFIT <- function() {
       if(isTRUE(use_qa())) {
         switch(spike_method(),
           'Median' = MODIS_summary_qa(curr_ts()$qa, w_min(), w_med(), w_max()) %>%
-                      spike_median(curr_ts()$vi, ., points_per_year(), w_min(), spike_value()),
+                      spike_median(curr_ts()$vi, ., points_per_year(), w_min(), spike_value(), cpp = F),
           'STL'    = NULL, # TODO
           'STL_w'  = NULL, # TODO
           'None'   = MODIS_summary_qa(curr_ts()$qa, w_min(), w_med(), w_max())
@@ -317,7 +422,7 @@ testFIT <- function() {
       } else {
         switch(spike_method(),
           'Median' = rep(w_max(), length(curr_ts()$qa)) %>%
-                      spike_median(curr_ts()$vi, ., points_per_year(), w_min(), spike_value()),
+                      spike_median(curr_ts()$vi, ., points_per_year(), w_min(), spike_value(), cpp = F),
           'STL'    = NULL,
           'STL_w'  = NULL,
           'None'   = rep(w_max(), length(curr_ts()$vi))
@@ -337,41 +442,111 @@ testFIT <- function() {
 
     # ---- 3. Curve Fitting ----
 
-    n_seasons <- reactive({
-      input$nSeasons
-    })
+    ## Harmonic Modeling
+    n_seasons <- reactive({input$nSeasonsNum})
 
     harm_ts <- reactive({
       req(curr_ts(), n_seasons())
       rHarmonics::harmonics_fun(curr_ts()$vi, curr_ts()$dates, n_seasons())
     })
 
+    ## Adaptive Savitzky Golay Filter
+    savgol_win_size <- reactive({input$winSizeNum})
+
+    savgol_poly_deg <- reactive({input$polyDegNum})
+
+    savgol_is_upper_env <- reactive({input$upperEnvCheck})
+
+    savgol_n_iterations <- reactive({input$nIterNum})
+
+    savgol_w_fact <- reactive({input$wFactNum})
+
+    savgol_ts <- reactive({
+      #req(curr_ts(), curr_weights(), points_per_year(), savgol_win_size(), savgol_poly_deg(),
+      #    savgol_is_upper_env(), savgol_n_iterations(), savgol_w_fact())
+      phenoRS::smooth_regWSavGol(curr_ts()$vi, curr_weights(), points_per_year(), savgol_win_size(),
+                                 savgol_poly_deg(), savgol_n_iterations(), savgol_w_fact()) %>%
+        .$fits %>%
+        .[[length(.)]]
+    })
+
     # ---- Plot preparation ----
 
     ## Current Timeseries Dataframe
     curr_ts_df <- reactive({
-      req(curr_ts(), curr_weights(), curr_weight_flag(), harm_ts())
+      req(curr_ts(), curr_weights(), curr_weight_flag(), harm_ts(), savgol_ts())
       data.frame(date=curr_ts()$dates,
                  vi=curr_ts()$vi,
                  weights = curr_weights(),
                  weight_flags = curr_weight_flag(),
-                 vi_harm=harm_ts())
+                 vi_harm=harm_ts(),
+                 vi_savgol=savgol_ts())
     })
 
-    ## Current Plot
-    curr_plot <- reactive({
+    ## Base Plot
+    base_plot <- reactive({
       req(curr_ts_df())
       ggplot(curr_ts_df(), aes(x=date)) +
-        geom_line(aes(y=vi, colour = "Original")) +
         geom_point(aes(y=vi, colour = weight_flags)) +
-        geom_line(aes(y=vi_harm, colour = "Harmonic")) +
         scale_colour_manual("",
-                            breaks = c("Original", "Harmonic", "good", "marginal", "bad", "internal_min"),
-                            values = c("grey", "red", "green", "yellow", "red", "orange"))
+                            breaks = c("good", "marginal", "bad", "internal_min", "Harmonic", "Sav. Gol."),
+                            values = c("#00a65a", "#f39c12", "#dd4b39", "#001f3f", "#3c8dbc", "black"))
     })
+
+    ## Fitting methods layer
+    layer_harm_mod <- function() {
+      geom_line(aes(y=vi_harm, colour = 'Harmonic'))
+    }
+
+    layer_savgol <- function() {
+      geom_line(aes(y=vi_savgol, colour = 'Sav. Gol.'))
+    }
+
+    ## Current Plot
+    # curr_plot <- reactive({
+    #   req(curr_ts_df(), base_plot())
+    #   ggplot(curr_ts_df(), aes(x=date)) +
+    #     geom_point(aes(y=vi, colour = weight_flags)) +
+    #     geom_line(aes(y=vi_harm, colour = "Harmonic")) +
+    #     scale_colour_manual("",
+    #                         breaks = c("Harmonic", "good", "marginal", "bad", "internal_min"),
+    #                         values = c("red", "green", "yellow", "red", "orange"))
+    # })
 
     # observers ------------------------------------------------------------------------------------------------
 
+    ## Visibility
+
+    # spike parameters
+    observeEvent(input$spikeMethodSelect, {
+      toggleElement(id = 'spikeValueNum',
+                    condition = spike_method() == 'Median',
+                    anim = TRUE)
+      toggleElement(id = 'stlStiffnessNum',
+                    condition = spike_method() %in% c('STL', 'STL_w'),
+                    anim = TRUE)
+    }, ignoreInit = TRUE)
+
+    # Curve fitting parameters
+    observeEvent(input$harmModCheck, {
+      toggleElement(id = 'harmModParamPad',
+                    condition = isTRUE(input$harmModCheck),
+                    anim = TRUE)
+    }, ignoreInit = TRUE)
+
+    observeEvent(input$savGolCheck, {
+      toggleElement(id = 'savGolParamPad',
+                    condition = isTRUE(input$savGolCheck),
+                    anim = TRUE)
+    }, ignoreInit = TRUE)
+
+    observeEvent(input$upperEnvCheck, {
+      toggleElement(id = 'upperEnvParamRow',
+                    condition = isTRUE(input$upperEnvCheck),
+                    anim = TRUE)
+    }, ignoreInit = TRUE)
+
+    ## Map
     # Add AOI to leaflet map
     observe({
       if (length(aoi_path()) > 0) {
@@ -414,14 +589,27 @@ testFIT <- function() {
 
     # Extract click coordinates
     observeEvent(input$map_click, {
+      ##
+      print("CLICK")
+      print(savgol_win_size())
+      print(savgol_poly_deg())
+      print(savgol_is_upper_env())
+      print(savgol_n_iterations())
+      ##
       click <- input$map_click
       leafletProxy('map')%>%
         clearMarkers() %>%
         addMarkers(lng = click$lng, lat = click$lat)
-      output$fitPlot <- renderPlot(curr_plot())
-    })
+      output$fitPlot <- renderPlot({
+        p <- base_plot()
+        if(input$harmModCheck == TRUE) p <- p + layer_harm_mod()
+        if(input$savGolCheck == TRUE) p <- p + layer_savgol()
+        p
+      })
 
-    observe({print(curr_weight_flag())})
+      print(savgol_ts())
+      print(head(curr_ts_df()))
+    })
   }
 
   shinyApp(ui, server)
