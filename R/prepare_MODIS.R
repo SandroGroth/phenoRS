@@ -113,14 +113,14 @@ prepare_MODIS <- function(in_dir, out_dir, aoi, vi = 'NDVI', product_name = NA, 
 
   if (isTRUE(do_par)) {
     foreach(f = 1:length(hdfs), .packages = c('raster', 'gdalUtils', 'rgdal', 'lubridate'),
-            .export = c('.getMODIS_compositeDOY', '.getMODIS_compositeYear', 'extract_hdf', 'correct_doy'),
+            .export = c('.getMODIS_compositeDOY', '.getMODIS_composite_str', 'extract_hdf', 'correct_doy'),
             .options.snow = if(isTRUE(progress)) progb$opts else NULL) %dopar% {
       for (i in 1:length(sds)) {
         out_file <- file.path(orig_dir, paste0(strsplit(basename(hdfs[f]), ".hdf")[[1]][1],
                                                "_", sds[i], "_extract.tif"))
         r_sd <- extract_hdf(hdfs[f], sds[i], dtype)
         if (sds[i] == 'DOY') {
-          r_sd <- correct_doy(r_sd, .getMODIS_compositeYear(hdfs[f]))
+          r_sd <- correct_doy(r_sd, .getMODIS_composite_str(hdfs[f]))
         }
         writeRaster(r_sd, filename = out_file, datatype = dtype, format = 'GTiff', overwrite = T)
       }
@@ -134,7 +134,7 @@ prepare_MODIS <- function(in_dir, out_dir, aoi, vi = 'NDVI', product_name = NA, 
                                               "_", sds[i], "_extract.tif"))
         r_sd <- extract_hdf(hdfs[f], sds[i], dtype)
         if (sds[i] == 'DOY') {
-          r_sd <- correct_doy(r_sd, .getMODIS_compositeYear(hdfs[f]))
+          r_sd <- correct_doy(r_sd, .getMODIS_composite_str(hdfs[f]))
         }
         writeRaster(r_sd, filename = out_file, datatype = dtype, format = 'GTiff', overwrite = T)
       }

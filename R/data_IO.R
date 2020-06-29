@@ -30,18 +30,24 @@ extract_hdf <- function(hdf, sd, d_type='INT2S') {
 #' @description TODO
 #'
 #' @param r_obj Required raster object. Holds MODIS DOY as integers.
-#' @param comp_year Required integer. Year of the MODIS composite.
+#' @param comp_str Required integer. Year of the MODIS composite.
 #'
 #' @importFrom lubridate leap_year
 #'
 #' @export
 #'
-correct_doy <- function(r_obj, comp_year) {
+correct_doy <- function(r_obj, comp_str) {
 
-  if (isTRUE(leap_year(comp_year))) {
-    r_obj[r_obj < 12] <- r_obj[r_obj < 12] + 366
-  } else {
-    r_obj[r_obj < 13] <- r_obj[r_obj < 13] + 365
+  comp_year <- as.numeric(substr(comp_d, 1, 4))
+  comp_doy <- as.numeric(substr(comp_d, 5, 7))
+
+  # check if com doy is in critical end of the year
+  if (comp_doy > 352) {
+    if (leap_year(comp_year)) {
+      r_obj[r_obj < 16] <- r_obj[r_obj < 16] + 366
+    } else {
+      r_obj[r_obj < 16] <- r_obj[r_obj < 16] + 365
+    }
   }
 
   return(r_obj)
@@ -141,4 +147,65 @@ to_envi <- function(in_file, out_file, dtype = 'INT2U', co = 'INTERLEAVE=BIL') {
   gdal_translate(in_file, out_file, of = 'ENVI', ot = dtype, co = co)
 
   return(TRUE)
+}
+
+#' @title Get real Date from DOY vector.
+#'
+#' Applicable for products: MOD13Q1, MYD13Q1.
+#'
+#' @description TODO
+#' @details TODO
+#'
+#' @param d
+#' @param comp_d
+#'
+#' @importFrom lubridate leap_year
+#'
+#' @export
+#'
+get_real_dates <- function(d, comp_d) {
+
+  comp_years <- as.numeric(substr(comp_d, 1, 4))
+  comp_doys <- as.numeric(substr(comp_d, 5, 7))
+
+  d0 <- d
+  y0 <- comp_years
+
+  for (i in 1:length(d0)) {
+    if (!is.na(d0[i])) {
+      # check if composite doy is in the critical beginning of the year
+      # real acquisition date can be therefore in year before
+      if (comp_doys[i] < 10) {
+        # everything greater than the composite doy must be in the year before
+        if (d0[i] > comp_doys[i]) {
+          # lower the year by 1
+          y0[i] <- y0[i] - 1
+        }
+      }
+      # check if composite doy is in the critical end of the year
+      # real acquisition date can be therefore in the year after
+      if (comp_doys[i] > 352) {
+        # check if the composite year is a leap year
+        if (leap_year(y0[i])) {
+          # everything greater than 366 is in next year
+          if (d0[i] > 366) {
+            y0[i] <- y0[i] + 1
+            d0[i] <- d0[i] - 366
+          }
+        } else {
+          # everything greater than 365 is in next year
+          if (d0[i] > 365) {
+            y0[i] <- y0[i] + 1
+            d0[i] <- d0[i] - 365
+          }
+        }
+      }
+    }
+  }
+
+  # convert corrected doys to dates
+  dates <- as.Date(paste0(as.character(y0), as.character(d0)), format = "%Y%j")
+
+  return(dates)
+
 }
