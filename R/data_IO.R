@@ -173,15 +173,6 @@ get_real_dates <- function(d, comp_d) {
 
   for (i in 1:length(d0)) {
     if (!is.na(d0[i])) {
-      # check if composite doy is in the critical beginning of the year
-      # real acquisition date can be therefore in year before
-      if (comp_doys[i] < 10) {
-        # everything greater than the composite doy must be in the year before
-        if (d0[i] > comp_doys[i]) {
-          # lower the year by 1
-          y0[i] <- y0[i] - 1
-        }
-      }
       # check if composite doy is in the critical end of the year
       # real acquisition date can be therefore in the year after
       if (comp_doys[i] > 352) {
