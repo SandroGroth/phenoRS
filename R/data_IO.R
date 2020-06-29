@@ -38,8 +38,8 @@ extract_hdf <- function(hdf, sd, d_type='INT2S') {
 #'
 correct_doy <- function(r_obj, comp_str) {
 
-  comp_year <- as.numeric(substr(comp_d, 1, 4))
-  comp_doy <- as.numeric(substr(comp_d, 5, 7))
+  comp_year <- as.numeric(substr(comp_str, 1, 4))
+  comp_doy <- as.numeric(substr(comp_str, 5, 7))
 
   # check if com doy is in critical end of the year
   if (comp_doy > 352) {
