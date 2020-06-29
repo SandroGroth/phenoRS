@@ -54,7 +54,7 @@ prepare_MODIS <- function(in_dir, out_dir, aoi, vi = 'NDVI', product_name = NA, 
   out_crs <- NULL
   if (!is.na(out_proj)) {
     if (out_proj == 'AOI') {
-      out_crs <- CRS(crs(aoi))
+      out_crs <- CRS(crs(aoi)@projargs)
     } else {
       if (!inherits(out_proj, c("CRS", "sp"))) {
         tryCatch({
