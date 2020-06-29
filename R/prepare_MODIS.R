@@ -90,7 +90,7 @@ prepare_MODIS <- function(in_dir, out_dir, aoi, vi = 'NDVI', product_name = NA, 
   # save AOI temporarily for gdalwarp
   if (!missing(aoi)) {
     if (!is.null(out_crs)) {
-      if (CRS(crs(aoi))@projargs != out_crs@projargs) aoi <- st_transform(aoi, out_crs)
+      if (CRS(crs(aoi)@projargs)@projargs != out_crs@projargs) aoi <- st_transform(aoi, out_crs)
     }
     tmp_aoi <- file.path(tempdir(), 'aoi_mask.shp')
     st_write(aoi, tmp_aoi, overwrite = T, delete_dsn = T, quiet = T)
