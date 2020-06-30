@@ -38,7 +38,7 @@ library(rHarmonics)
 #'
 #' @export
 #'
-phenoRS_GUI <- function() {
+#phenoRS_GUI <- function() {
 
   # UI =========================================================================================================
 
@@ -57,39 +57,92 @@ phenoRS_GUI <- function() {
       navbarPage(title = "phenoRS", position = "fixed-top", collapsible = TRUE, fluid = TRUE,
         tabPanel(title = "Load Data", icon = icon("database", "fas"),
           fluidRow(
-            box(width = NULL, status = "warning",
-                h3("1. Load Data"),
+            column(5,
+              box(title = span(icon("map-marker"), "Area of Interest (AOI)"), width = NULL, solidHeader = FALSE,
+                  status = "primary",
                 fluidRow(style = 'padding:3px;',
-                         column(3,
-                                shinyFilesButton('aoiFileChoose', label = 'Load AOI', title = 'Select a AOI', multiple = FALSE)
-                         ),
-                         column(9,
-                                textOutput('aoiPathOutput')
-                         )
+                  column(3,
+                    shinyFilesButton('aoiFileChoose', label = 'Load AOI', title = 'Select a AOI', multiple = FALSE)
+                  ),
+                  column(9,
+                    textOutput('aoiPathOutput')
+                  ),
                 ),
-                fluidRow(style = 'padding:3px;',
-                         column(3,
-                                shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data')
-                         ),
-                         column(9,
-                                textOutput('prepDirOutput') %>%
-                                  withSpinner(color="#0dc5c1", size = 0.3, proxy.height = "50px")
-                         )
+                actionButton("drawAOIButton", label = "Draw AOI", icon = icon("pencil"))
+              ),
+              tabBox(title = span(icon("table"), "Timeseries Data"), width = NULL, side = "right",
+                     selected = "Download",
+                tabPanel(title = "Help"
                 ),
-                selectInput('displayViSelect', label = 'Display VI', choices = NULL),
+                tabPanel("Preprocessed",
+                  box(width = NULL, status = "warning",
+                    h3("1. Load Data"),
+                    fluidRow(style = 'padding:3px;',
+                      column(3,
+                        shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data')
+                      ),
+                      column(9,
+                      textOutput('prepDirOutput') %>%
+                        withSpinner(color="#0dc5c1", size = 0.3, proxy.height = "50px")
+                      )
+                    ),
+                    selectInput('displayViSelect', label = 'Display VI', choices = NULL),
+                  )
+                ),
+                tabPanel(title = "Download",
+                  dateRangeInput("dataDateRange", label = "Time Range (yyyy-mm-dd):", start = Sys.Date() - 365,
+                                 end = Sys.Date()),
+                  tabBox(title = "Sensor", width = "90%", side = "right", selected = "MODIS",
+                    tabPanel(title = "Sentinel-2"
+                    ),
+                    tabPanel(title = "Landsat"
+                    ),
+                    tabPanel(title = "MODIS",
+                      checkboxGroupInput("MODISPlatform", label = "Platform",
+                                         choices = c("Terra" = "platformTerra", "Aqua" = "platformAqua"),
+                                         selected = c(TRUE, FALSE), inline = TRUE),
+                      selectInput("MODISProductSelect", label = "Product Type",
+                                  choices = c("MOD13Q1_v6 | MYD13Q1_v6"),
+                                  selected = "MOD13Q1_v6 | MYD13Q1_v6")
+                    )
+                  )
+                )
+              ),
+              box(title = span(icon("sliders"), "General Settings"), width = NULL, solidHeader = FALSE,
+                  status = "primary",
                 fluidRow(
                   column(12/3,
-                         numericInput('maxDataGapNum', label = 'Max. data gap', value = 4, min = 0, step = 1)
+                    numericInput('maxDataGapNum', label = 'Max. data gap', value = 4, min = 0, step = 1)
                   ),
                   column(12/3,
-                         numericInput('internalMinNum', label = 'Internal Min.', value = -999, step = 1)
+                    numericInput('internalMinNum', label = 'Internal Min.', value = -999, step = 1)
                   ),
                   column(12/3,
-                         numericInput('pointsPerYearNum', label = 'Points per year', value = 23, min = 0, step = 1)
+                    numericInput('pointsPerYearNum', label = 'Points per year', value = 23, min = 0, step = 1)
                   )
                 )
               )
             ),
+            column(7,
+              box(title = "Map View", width = NULL, status = "primary",
+                leafletOutput("dataMapView") %>%
+                  withSpinner(color="#0dc5c1")
+              ),
+              fluidRow(
+                column(9,
+                  box(title = "Time Series", width = NULL, status = "primary",
+                    plotOutput("dataPlot", height = "300px") %>%
+                      withSpinner(color="#0dc5c1")
+                  )
+                ),
+                column(3,
+                  valueBoxOutput("nTSPointsValueBox", width = NULL),
+                  valueBoxOutput("nYearsValueBox", width = NULL),
+                  valueBoxOutput("nPointsYearValueBox", width = NULL)
+                )
+              )
+            )
+          )
         ),
         tabPanel(title = "Curve Fitting", icon = icon("chart-area", "fas"),
           fluidRow(
@@ -108,7 +161,6 @@ phenoRS_GUI <- function() {
           ),
           fluidRow(
             column(12/4,
-
             ),
             column(12/4,
                   box(width = NULL, status = "warning",
@@ -126,10 +178,10 @@ phenoRS_GUI <- function() {
                         )
                       ),
                       selectInput('spikeMethodSelect', label = 'Spike Method', choices = c('None', 'Median', 'STL', 'STL_w')),
-                      hidden(
+                      shinyjs::hidden(
                         numericInput('spikeValueNum', label = 'Spike Value', value = 2.0, step = 0.1)
                       ),
-                      hidden(
+                      shinyjs::hidden(
                         numericInput('stlStiffnessNum', label = 'STL stiffness', value = 3.0, step = 0.1)
                       )
                   )
@@ -149,14 +201,14 @@ phenoRS_GUI <- function() {
                                checkboxInput('asymGaussCheck', label = 'Asymmetric Gauss', value = FALSE)
                         )
                       ),
-                      hidden(
-                        boxPad(id = 'harmModParamPad', color = 'gray',
+                      shinyjs::hidden(
+                        shinydashboardPlus::boxPad(id = 'harmModParamPad', color = 'gray',
                                span("Harmonic Modeling: "),
                                numericInput('nSeasonsNum', label = 'Number of seasons per year', value = 1)
                         )
                       ),
-                      hidden(
-                        boxPad(id = 'savGolParamPad', color = 'gray',
+                      shinyjs::hidden(
+                        shinydashboardPlus::boxPad(id = 'savGolParamPad', color = 'gray',
                                span("Adaptive Savitzky-Golay Filter: "),
                                fluidRow(
                                  column(12/2,
@@ -167,7 +219,7 @@ phenoRS_GUI <- function() {
                                  )
                                ),
                                checkboxInput('upperEnvCheck', label = 'Adaption to upper envelope', value = FALSE),
-                               hidden(
+                               shinyjs::hidden(
                                  fluidRow(id = 'upperEnvParamRow',
                                           column(12/2,
                                                  numericInput('nIterNum', label = 'Iterations', value = 1, min = 1, step = 1)
@@ -203,6 +255,42 @@ phenoRS_GUI <- function() {
     volumes <- getVolumes()
 
     # init elements --------------------------------------------------------------------------------------------
+
+    ## Data Tab Panel
+    output$dataMapView <- renderLeaflet({
+      leaflet() %>%
+        addProviderTiles(providers$Esri.WorldImagery, options = providerTileOptions(noWrap = TRUE)) %>%
+        addProviderTiles(providers$CartoDB.PositronOnlyLabels, options = providerTileOptions(noWrap = TRUE)) %>%
+        setView(0, 0, zoom = 2)
+    })
+
+    ## value Boxes
+    output$nTSPointsValueBox <- renderValueBox(
+      valueBox(
+        as.character(0),
+        "Images",
+        icon = icon("database"),
+        color = "aqua"
+      )
+    )
+
+    output$nYearsValueBox <- renderValueBox(
+      valueBox(
+        as.character(0),
+        "Years",
+        icon = icon("calendar"),
+        color = "orange"
+      )
+    )
+
+    output$nPointsYearValueBox <- renderValueBox(
+      valueBox(
+        as.character(0),
+        "Images per year",
+        icon = icon("pie-chart"),
+        color = "maroon"
+      )
+    )
 
     # AOI File selection
     shinyFileChoose(input, 'aoiFileChoose', roots = volumes, filetypes = c('', 'shp'))
@@ -626,4 +714,4 @@ phenoRS_GUI <- function() {
 
   shinyApp(ui, server)
 
-}
+#}
