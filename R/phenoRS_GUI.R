@@ -38,145 +38,157 @@ library(rHarmonics)
 #'
 #' @export
 #'
-testFIT <- function() {
+phenoRS_GUI <- function() {
 
   # UI =========================================================================================================
 
-  ui <- dashboardPage(
+  ui <- dashboardPage(title = "phenoRS | Remote sensing of phenological metrics.",
 
     # Header ---------------------------------------------------------------------------------------------------
-    dashboardHeader(title = "Test Curve Fitting"),
+    dashboardHeader(title = "phenoRS", disable = TRUE),
 
     # Sidebar --------------------------------------------------------------------------------------------------
     dashboardSidebar(disable = TRUE),
 
     # Body -----------------------------------------------------------------------------------------------------
     dashboardBody(
-      useShinyjs(),
-      fluidRow(
-        column(8,
-          box(width = NULL, solidHeader = TRUE,
-             plotOutput('fitPlot') %>%
-               withSpinner(color="#0dc5c1")
-          )
-        ),
-        column(4,
-          box(width = NULL, solidHeader = TRUE,
-             leafletOutput("map") %>%
-               withSpinner(color="#0dc5c1")
-          )
-        )
-      ),
-      fluidRow(
-        column(12/4,
-          box(width = NULL, status = "warning",
-             h3("1. Load Data"),
-             fluidRow(style = 'padding:3px;',
-                      column(3,
-                             shinyFilesButton('aoiFileChoose', label = 'Load AOI', title = 'Select a AOI', multiple = FALSE)
-                      ),
-                      column(9,
-                             textOutput('aoiPathOutput')
-                      )
-             ),
-             fluidRow(style = 'padding:3px;',
-                      column(3,
-                             shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data')
-                      ),
-                      column(9,
-                             textOutput('prepDirOutput') %>%
-                               withSpinner(color="#0dc5c1", size = 0.3, proxy.height = "50px")
-                      )
-             ),
-             selectInput('displayViSelect', label = 'Display VI', choices = NULL),
-             fluidRow(
-               column(12/3,
-                      numericInput('maxDataGapNum', label = 'Max. data gap', value = 4, min = 0, step = 1)
-               ),
-               column(12/3,
-                      numericInput('internalMinNum', label = 'Internal Min.', value = -999, step = 1)
-               ),
-               column(12/3,
-                      numericInput('pointsPerYearNum', label = 'Points per year', value = 23, min = 0, step = 1)
-               )
-             )
-          )
-        ),
-        column(12/4,
-          box(width = NULL, status = "warning",
-            h3("2. Outlier removal"),
-            checkboxInput('useQaCheck', label = 'Use Quality data', value = FALSE),
-            fluidRow(
-              column(12/3,
-                     numericInput('wMinNum', label = 'Min. weight', value = 0.0, min = 0.0, max = 1.0, step = 0.1)
-              ),
-              column(12/3,
-                     numericInput('wMedNum', label = 'Med. weight', value = 0.5, min = 0.0, max = 1.0, step = 0.1)
-              ),
-              column(12/3,
-                     numericInput('wMaxNum', label = 'Max. weight', value = 1.0, min = 0.0, max = 1.0, step = 0.1)
-              )
-            ),
-            selectInput('spikeMethodSelect', label = 'Spike Method', choices = c('None', 'Median', 'STL', 'STL_w')),
-            hidden(
-              numericInput('spikeValueNum', label = 'Spike Value', value = 2.0, step = 0.1)
-            ),
-            hidden(
-              numericInput('stlStiffnessNum', label = 'STL stiffness', value = 3.0, step = 0.1)
-            )
-          )
-        ),
-        column(12/4,
-          box(width = NULL, status = "warning",
-            h3("3. Curve Fitting"),
-            h4("Fitting Methods: "),
-            fluidRow(
-              column(12/3,
-                checkboxInput('harmModCheck', label = 'Harmonic Modeling', value = FALSE)
-              ),
-              column(12/3,
-                checkboxInput('savGolCheck', label = 'Adapt. Sav. Gol.', value = FALSE)
-              ),
-              column(12/3,
-                checkboxInput('asymGaussCheck', label = 'Asymmetric Gauss', value = FALSE)
-              )
-            ),
-            hidden(
-              boxPad(id = 'harmModParamPad', color = 'gray',
-                span("Harmonic Modeling: "),
-                numericInput('nSeasonsNum', label = 'Number of seasons per year', value = 1)
-              )
-            ),
-            hidden(
-              boxPad(id = 'savGolParamPad', color = 'gray',
-                span("Adaptive Savitzky-Golay Filter: "),
-                fluidRow(
-                  column(12/2,
-                    numericInput('winSizeNum', label = 'Window size', value = 7)
-                  ),
-                  column(12/2,
-                    numericInput('polyDegNum', label = 'Polynomial degree', value = 2)
-                  )
+      shinyjs::useShinyjs(),
+      tags$head(tags$style(type="text/css", "body {padding-top: 50px;}")),
+      navbarPage(title = "phenoRS", position = "fixed-top", collapsible = TRUE, fluid = TRUE,
+        tabPanel(title = "Load Data", icon = icon("database", "fas"),
+          fluidRow(
+            box(width = NULL, status = "warning",
+                h3("1. Load Data"),
+                fluidRow(style = 'padding:3px;',
+                         column(3,
+                                shinyFilesButton('aoiFileChoose', label = 'Load AOI', title = 'Select a AOI', multiple = FALSE)
+                         ),
+                         column(9,
+                                textOutput('aoiPathOutput')
+                         )
                 ),
-                checkboxInput('upperEnvCheck', label = 'Adaption to upper envelope', value = FALSE),
-                hidden(
-                  fluidRow(id = 'upperEnvParamRow',
-                    column(12/2,
-                      numericInput('nIterNum', label = 'Iterations', value = 1, min = 1, step = 1)
-                    ),
-                    column(12/2,
-                      numericInput('wFactNum', label = 'Weight update factor', value = 2, min = 1, step = 1)
-                    )
+                fluidRow(style = 'padding:3px;',
+                         column(3,
+                                shinyDirButton('prepDirChoose', label = 'Load TS', title = 'Load Timeseries data')
+                         ),
+                         column(9,
+                                textOutput('prepDirOutput') %>%
+                                  withSpinner(color="#0dc5c1", size = 0.3, proxy.height = "50px")
+                         )
+                ),
+                selectInput('displayViSelect', label = 'Display VI', choices = NULL),
+                fluidRow(
+                  column(12/3,
+                         numericInput('maxDataGapNum', label = 'Max. data gap', value = 4, min = 0, step = 1)
+                  ),
+                  column(12/3,
+                         numericInput('internalMinNum', label = 'Internal Min.', value = -999, step = 1)
+                  ),
+                  column(12/3,
+                         numericInput('pointsPerYearNum', label = 'Points per year', value = 23, min = 0, step = 1)
                   )
                 )
               )
+            ),
+        ),
+        tabPanel(title = "Curve Fitting", icon = icon("chart-area", "fas"),
+          fluidRow(
+            column(8,
+                  box(width = NULL, solidHeader = TRUE,
+                      plotOutput('fitPlot') %>%
+                        withSpinner(color="#0dc5c1")
+                  )
+            ),
+            column(4,
+                  box(width = NULL, solidHeader = TRUE,
+                      leafletOutput("map") %>%
+                        withSpinner(color="#0dc5c1")
+                  )
             )
+          ),
+          fluidRow(
+            column(12/4,
+
+            ),
+            column(12/4,
+                  box(width = NULL, status = "warning",
+                      h3("2. Outlier removal"),
+                      checkboxInput('useQaCheck', label = 'Use Quality data', value = FALSE),
+                      fluidRow(
+                        column(12/3,
+                               numericInput('wMinNum', label = 'Min. weight', value = 0.0, min = 0.0, max = 1.0, step = 0.1)
+                        ),
+                        column(12/3,
+                               numericInput('wMedNum', label = 'Med. weight', value = 0.5, min = 0.0, max = 1.0, step = 0.1)
+                        ),
+                        column(12/3,
+                               numericInput('wMaxNum', label = 'Max. weight', value = 1.0, min = 0.0, max = 1.0, step = 0.1)
+                        )
+                      ),
+                      selectInput('spikeMethodSelect', label = 'Spike Method', choices = c('None', 'Median', 'STL', 'STL_w')),
+                      hidden(
+                        numericInput('spikeValueNum', label = 'Spike Value', value = 2.0, step = 0.1)
+                      ),
+                      hidden(
+                        numericInput('stlStiffnessNum', label = 'STL stiffness', value = 3.0, step = 0.1)
+                      )
+                  )
+            ),
+            column(12/4,
+                  box(width = NULL, status = "warning",
+                      h3("3. Curve Fitting"),
+                      h4("Fitting Methods: "),
+                      fluidRow(
+                        column(12/3,
+                               checkboxInput('harmModCheck', label = 'Harmonic Modeling', value = FALSE)
+                        ),
+                        column(12/3,
+                               checkboxInput('savGolCheck', label = 'Adapt. Sav. Gol.', value = FALSE)
+                        ),
+                        column(12/3,
+                               checkboxInput('asymGaussCheck', label = 'Asymmetric Gauss', value = FALSE)
+                        )
+                      ),
+                      hidden(
+                        boxPad(id = 'harmModParamPad', color = 'gray',
+                               span("Harmonic Modeling: "),
+                               numericInput('nSeasonsNum', label = 'Number of seasons per year', value = 1)
+                        )
+                      ),
+                      hidden(
+                        boxPad(id = 'savGolParamPad', color = 'gray',
+                               span("Adaptive Savitzky-Golay Filter: "),
+                               fluidRow(
+                                 column(12/2,
+                                        numericInput('winSizeNum', label = 'Window size', value = 7)
+                                 ),
+                                 column(12/2,
+                                        numericInput('polyDegNum', label = 'Polynomial degree', value = 2)
+                                 )
+                               ),
+                               checkboxInput('upperEnvCheck', label = 'Adaption to upper envelope', value = FALSE),
+                               hidden(
+                                 fluidRow(id = 'upperEnvParamRow',
+                                          column(12/2,
+                                                 numericInput('nIterNum', label = 'Iterations', value = 1, min = 1, step = 1)
+                                          ),
+                                          column(12/2,
+                                                 numericInput('wFactNum', label = 'Weight update factor', value = 2, min = 1, step = 1)
+                                          )
+                                 )
+                               )
+                        )
+                      )
+                  )
+          ),
+          column(12/4,
+                box(width = NULL, status = "warning",
+                    h3("4. Phenology metrics")
+                )
+          )
           )
         ),
-        column(12/4,
-          box(width = NULL, status = "warning",
-             h3("4. Phenology metrics")
-          )
+        tabPanel(title = "Phenology", icon = icon("leaf", "fas")
         )
       )
     )
