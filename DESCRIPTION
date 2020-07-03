@@ -32,4 +32,5 @@ LazyData: true
 RoxygenNote: 7.1.0
 LinkingTo: Rcpp
 Suggests: 
-    testthat
+    testthat,
+    covr
