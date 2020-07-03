@@ -34,17 +34,17 @@ create_settings <- function(
 
   # ---- Input Checks ----
   # type checks
-  if(!is.character(data_type)) stop("data_type must be character.")
-  if(!is.logical(use_qa)) stop("use_qa must be a logical value.")
-  if(!is.numeric(valid_min)) stop("valid_min must be numeric.")
-  if(!is.numeric(valid_max)) stop("valid_max must be numeric.")
-  if(!is.numeric(weight_min)) stop("weight_min must be numeric.")
-  if(!is.numeric(weight_med)) stop("weight_min must be numeric.")
-  if(!is.numeric(weight_max)) stop("weight_min must be numeric.")
+  if(!is.character(data_type))      stop("data_type must be character.")
+  if(!is.logical(use_qa))           stop("use_qa must be a logical value.")
+  if(!is.numeric(valid_min))        stop("valid_min must be numeric.")
+  if(!is.numeric(valid_max))        stop("valid_max must be numeric.")
+  if(!is.numeric(weight_min))       stop("weight_min must be numeric.")
+  if(!is.numeric(weight_med))       stop("weight_min must be numeric.")
+  if(!is.numeric(weight_max))       stop("weight_min must be numeric.")
   if(!is.numeric(amplitude_cutoff)) stop("amplitude_cutoff must be numeric.")
-  if(!is.character(spike_method)) stop("spike_method must be character.")
-  if(!is.numeric(spike_value)) stop("spike_value must be numeric.")
-  if(!is.numeric(stl_stiffness)) stop("stl_stiffness must be numeric.")
+  if(!is.character(spike_method))   stop("spike_method must be character.")
+  if(!is.numeric(spike_value))      stop("spike_value must be numeric.")
+  if(!is.numeric(stl_stiffness))    stop("stl_stiffness must be numeric.")
 
   # value checks
   if(!(data_type %in% c('Int16', 'UInt16', 'Int32', 'Float32'))) stop("Unsupported data type.")
