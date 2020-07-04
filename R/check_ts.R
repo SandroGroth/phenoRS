@@ -20,6 +20,10 @@
 
 #' @title Check input time series.
 #'
+#' @description Function for checking the validity of an input time series for further processing.
+#'
+#' @usage
+#'
 #' @param y
 #' @param d
 #' @param w
@@ -30,21 +34,33 @@
 #' @param w_min
 #' @param approx_spike
 #'
+#' @details TODO
+#'
+#' @return TODO
+#'
+#' @author Sandro Groth
+#'
 #' @importFrom zoo na.approx
 #'
 #' @name check_ts
 #' @export
 #'
-check_ts <- function(y, d, w, valid_min, amplitude_cutoff=200, y_min = 200, y_max = 10000, w_min = 0,
+check_ts <- function(y, d, w, valid_min, amplitude_cutoff=2000, y_min = 200, y_max = 10000, w_min = 0,
                      approx_spike = TRUE) {
 
   # Input checks
-  # TODO
+  #TODO
 
   N  <- length(y)
   y0 <- y
   d0 <- d
   w0 <- w
+
+  # check if TS has different lengths
+  if (length(d) != N | length(w) != N) {
+    warning("TS elements have different lengths. Skipping...")
+    return(list(y=rep(NA, N), d=rep(NA, N), w=rep(NA, N)))
+  }
 
   # check if TS contains too much missing or bad values
   valids <- y[!is.na(y) & !is.na(d) & !is.na(w) & w != w_min]
@@ -74,7 +90,23 @@ check_ts <- function(y, d, w, valid_min, amplitude_cutoff=200, y_min = 200, y_ma
   y0 <- .adapt_range(y0, y_min, y_max)
 
   # Amplitude cutoff
-  # TODO
+  # set all values to NA if mean amplitude of all years is smaller than specified
+  amps <- c()
+  i <- 1
+  while (i <= length(d0)) {
+    begin <- i
+    end <- i
+    j <- i
+    while (j < length(d0)-1 & d0[j] < d0[j+1]) {
+      end <- j + 1
+      j <- end
+    }
+    vals <- y0[begin:end]
+    amp <- max(vals) - min(vals)
+    amps <- c(amps, amp)
+    i <- end + 1
+  }
+  if (mean(amps) < amplitude_cutoff) return(list(y=rep(NA, N), d=rep(NA, N), w=rep(NA, N)))
 
   return(list(y=y0, d=d0, w=w0))
 }
