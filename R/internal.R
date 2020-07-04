@@ -15,6 +15,10 @@
   return(as.character(strftime(date, format = format)))
 }
 
+.getMODIS_composite_str <- function(file, pos1=10, pos2=16) {
+  return(substr(basename(file), pos1, pos2))
+}
+
 .getMODIS_compositeDOY <- function(file, pos1=14, pos2=16) {
   return(as.integer(substr(basename(file), pos1, pos2)))
 }
@@ -65,6 +69,10 @@
 
 .get_prep_year_str <- function(files, pos1 = 1, pos2 = 4) {
   return(as.numeric(substr(basename(files), pos1, pos2)))
+}
+
+.get_prep_comp_str <- function(files, pos1= 1, pos2 = 7) {
+  return(substr(basename(files), pos1, pos2))
 }
 
 #' Converts R data type to GDAL data type

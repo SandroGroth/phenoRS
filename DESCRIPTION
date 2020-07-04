@@ -18,22 +18,20 @@ Imports: doParallel,
           lubridate,
           dplyr,
           magrittr,
-          shiny,
-          shinyFiles,
-          shinydashboard,
-          leaflet,
           sp,
-          mapview,
-          tibble,
           ggplot2,
           rHarmonics,
           rgdal,
           Rcpp,
           phenofit,
-          tools
+          tools,
+          zoo
 Remotes: 16EAGLE/getSpatialData,
          MBalthasar/rHarmonics
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.0
 LinkingTo: Rcpp
+Suggests: 
+    testthat,
+    covr

@@ -4,6 +4,7 @@
 [![CRAN version](https://www.r-pkg.org/badges/version/phenoRS)](https://CRAN.R-project.org/package=phenoRS)
 [![Build Status](https://travis-ci.org/SandroGroth/phenoRS.svg?branch=master)](https://travis-ci.org//SandroGroth/phenoRS)
 ![Last Commit](https://img.shields.io/github/last-commit/SandroGroth/phenoRS/develop)
+![codecov]("https://codecov.io/github/SandroGroth/phenoRS/branch/master/graph/badge.svg")(https://codecov.io/github/SandroGroth/phenoRS)
 ![License](https://img.shields.io/github/license/SandroGroth/phenoRS)
 
 

@@ -16,10 +16,12 @@ before_install:
   - sudo apt-get install netcdf-bin
 
   - R -e 'install.packages("devtools")'
+  - R -e 'install.packages("covr")'
 
 r_github_packages:
   - 16EAGLE/getSpatialData
   - MBalthasar/rHarmonics
+  - r-lib/covr
 
 install:
   - R -e 'devtools::install_deps(dep = T)'
@@ -27,3 +29,7 @@ install:
 script:
   - R CMD build .
   - R CMD check *tar.gz --no-tests
+  - R -e 'devtools::test("/home/travis/build/SandroGroth/phenoRS/")'
+
+after-success:
+  - Rscript -e 'covr::codecov()'
