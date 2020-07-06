@@ -45,7 +45,7 @@
 #' @name check_ts
 #' @export
 #'
-check_ts <- function(y, d, w, valid_min, amplitude_cutoff=2000, y_min = 200, y_max = 10000, w_min = 0,
+check_ts <- function(y, d, w, valid_min, y_min = 200, y_max = 10000, w_min = 0,
                      approx_spike = TRUE) {
 
   # Input checks
@@ -88,25 +88,6 @@ check_ts <- function(y, d, w, valid_min, amplitude_cutoff=2000, y_min = 200, y_m
   y0[is.na(y0)] <- y_min
 
   y0 <- .adapt_range(y0, y_min, y_max)
-
-  # Amplitude cutoff
-  # set all values to NA if mean amplitude of all years is smaller than specified
-  amps <- c()
-  i <- 1
-  while (i <= length(d0)) {
-    begin <- i
-    end <- i
-    j <- i
-    while (j < length(d0)-1 & d0[j] < d0[j+1]) {
-      end <- j + 1
-      j <- end
-    }
-    vals <- y0[begin:end]
-    amp <- max(vals) - min(vals)
-    amps <- c(amps, amp)
-    i <- end + 1
-  }
-  if (mean(amps) < amplitude_cutoff) return(list(y=rep(NA, N), d=rep(NA, N), w=rep(NA, N)))
 
   return(list(y=y0, d=d0, w=w0))
 }
