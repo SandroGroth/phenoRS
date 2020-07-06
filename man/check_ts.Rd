@@ -4,21 +4,20 @@
 \alias{check_ts}
 \title{Check input time series.}
 \usage{
-check_ts(
-  y,
-  d,
-  w,
-  valid_min,
-  amplitude_cutoff = 200,
-  y_min = 200,
-  y_max = 10000,
-  w_min = 0,
-  approx_spike = TRUE
-)
+
 }
 \arguments{
 \item{approx_spike}{}
 }
+\value{
+TODO
+}
 \description{
-Check input time series.
+Function for checking the validity of an input time series for further processing.
+}
+\details{
+TODO
+}
+\author{
+Sandro Groth
 }

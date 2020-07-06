@@ -5,6 +5,29 @@
 
 using namespace Rcpp;
 
+// rcpp_signDouble
+double rcpp_signDouble(double x);
+RcppExport SEXP _phenoRS_rcpp_signDouble(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_signDouble(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rcpp_findPeaks
+NumericVector rcpp_findPeaks(NumericVector x, int m);
+RcppExport SEXP _phenoRS_rcpp_findPeaks(SEXP xSEXP, SEXP mSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_findPeaks(x, m));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rcpp_spikeMedian
 NumericVector rcpp_spikeMedian(const NumericVector y, const NumericVector w, const int ypts, const int w_min, const int spk);
 RcppExport SEXP _phenoRS_rcpp_spikeMedian(SEXP ySEXP, SEXP wSEXP, SEXP yptsSEXP, SEXP w_minSEXP, SEXP spkSEXP) {
@@ -38,6 +61,8 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_phenoRS_rcpp_signDouble", (DL_FUNC) &_phenoRS_rcpp_signDouble, 1},
+    {"_phenoRS_rcpp_findPeaks", (DL_FUNC) &_phenoRS_rcpp_findPeaks, 2},
     {"_phenoRS_rcpp_spikeMedian", (DL_FUNC) &_phenoRS_rcpp_spikeMedian, 5},
     {"_phenoRS_rcpp_wTSM", (DL_FUNC) &_phenoRS_rcpp_wTSM, 6},
     {NULL, NULL, 0}
