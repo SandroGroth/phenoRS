@@ -89,5 +89,11 @@ check_ts <- function(y, d, w, valid_min, y_min = 200, y_max = 10000, w_min = 0,
 
   y0 <- .adapt_range(y0, y_min, y_max)
 
+  # remove duplicates
+  # TODO aggregate duplicates by mean value
+  duplic <- duplicated(d0)
+  y0 <- y0[!duplic]
+  d0 <- d0[!duplic]
+
   return(list(y=y0, d=d0, w=w0))
 }
