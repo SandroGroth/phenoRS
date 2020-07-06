@@ -33,6 +33,7 @@ y_max = 10000
 ts_y_nvalid <- c(200, NA, 250, NA, NA, NA, 600)
 ts_d_nvalid <- c(1, NA, 3, NA, NA, NA, 5)
 ts_w_nvalid <- c(1, 1, 1, 1, 1, 1, 1)
+ts_comp_d_nvalid <- c("2018001", NA, "2018003", NA, NA, NA, "2018005")
 ts_expect_nvalid <- list(y=c(NA, NA, NA, NA, NA, NA, NA),
                           d=c(NA, NA, NA, NA, NA, NA, NA),
                           w=c(NA, NA, NA, NA, NA, NA, NA))
@@ -41,39 +42,59 @@ ts_expect_nvalid <- list(y=c(NA, NA, NA, NA, NA, NA, NA),
 ts_y_na <- c(200, NA, 400, NA, NA, 700, 800)
 ts_d_na <- c(1, 2, 3, 4, 5, 6, 7)
 ts_w_na <- c(1, 1, 1, 1, 1, 1, 1)
+ts_comp_d_na <- c("2018016", "2018016", "2018016", "2018016", "2018016", "2018016", "2018016")
 ts_expect_na <- list(y=c(200, 300, 400, 500, 600, 700, 800),
-                     d=c(1, 2, 3, 4, 5, 6, 7),
+                     d=as.Date(c("2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04", "2018-01-05",
+                                 "2018-01-06", "2018-01-07")),
                      w=c(1, 0.2, 1, 0.2, 0.2, 1, 1))
 
 # Test with spike approx
 ts_y_spk <- c(100, 200, 300, 100000, 500, -100, 700)
 ts_d_spk <- c(1, 2, 3, 4, 5, 6, 7)
 ts_w_spk <- c(0.2, 1, 1, 0.2, 1, 0.2, 1)
+ts_comp_d_spk <- c("2018016", "2018016", "2018016", "2018016", "2018016", "2018016", "2018016")
 ts_expect_spk <- list(y=c(200, 200, 300, 400, 500, 600, 700),
-                      d=c(1, 2, 3, 4, 5, 6, 7),
+                      d=as.Date(c("2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04", "2018-01-05",
+                                  "2018-01-06", "2018-01-07")),
                       w=c(0.2, 1, 1, 0.2, 1, 0.2, 1))
 
 # test with range adjustment (no spike approx)
 ts_y_rg <- c(100, 200, 300, 100000, 500, -100, 700)
 ts_d_rg <- c(1, 2, 3, 4, 5, 6, 7)
 ts_w_rg <- c(0.2, 1, 1, 0.2, 1, 0.2, 1)
+ts_comp_d_rg <- c("2018016", "2018016", "2018016", "2018016", "2018016", "2018016", "2018016")
 ts_expect_rg <- list(y=c(200, 200, 300, 10000, 500, 200, 700),
-                     d=c(1, 2, 3, 4, 5, 6, 7),
+                     d=as.Date(c("2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04", "2018-01-05",
+                                 "2018-01-06", "2018-01-07")),
                      w=c(0.2, 1, 1, 0.2, 1, 0.2, 1))
 
 # test with different ts lengths
 ts_y_len <- c(1, 2, 3)
 ts_d_len <- c(1, 2)
 ts_w_len <- c(1, 2, 3, 4)
+ts_comp_d_len <- c("2018016", "2018016", "2018016", "2018016", "2018016", "2018016", "2018016")
+
+# test with duplicate value
+ts_y_dup <- c(3000, 3000, 8000, 3000)
+ts_d_dup <- c(1, 1, 2, 3)
+ts_w_dup <- c(1, 1, 1, 1)
+ts_comp_d_dup <- c("2018016", "2018016", "2018016", "2018016")
+ts_expect_dup <- list(y=c(3000, 8000, 3000),
+                      d=as.Date(c("2018-01-01", "2018-01-02", "2018-01-03")),
+                      w=c(1, 1, 1))
+
+# execute test -----------------------------------------------------------------------------------------------
 
 test_that("check_ts", {
-  expect_equal(check_ts(ts_y_nvalid, ts_d_nvalid, ts_w_nvalid, valid_min),
-               ts_expect_nvalid)
-  expect_equal(check_ts(ts_y_na, ts_d_na, ts_w_na, valid_min, w_min = 0.2),
+  expect_warning(expect_equal(check_ts(ts_y_nvalid, ts_d_nvalid, ts_w_nvalid, ts_comp_d_nvalid, valid_min),
+               ts_expect_nvalid))
+  expect_equal(check_ts(ts_y_na, ts_d_na, ts_w_na, ts_comp_d_na, valid_min, w_min = 0.2),
                ts_expect_na)
-  expect_equal(check_ts(ts_y_spk, ts_d_spk, ts_w_spk, valid_min, w_min = 0.2,
+  expect_equal(check_ts(ts_y_spk, ts_d_spk, ts_w_spk, ts_comp_d_spk, valid_min, w_min = 0.2,
                         y_min = y_min, y_max = y_max, approx_spike = T), ts_expect_spk)
-  expect_equal(check_ts(ts_y_rg, ts_d_rg, ts_w_rg, valid_min, w_min = 0.2, y_min = y_min,
+  expect_equal(check_ts(ts_y_rg, ts_d_rg, ts_w_rg, ts_comp_d_rg, valid_min, w_min = 0.2, y_min = y_min,
                         y_max = y_max, approx_spike = F), ts_expect_rg)
-  expect_warning(check_ts(ts_y_len, ts_d_len, ts_w_len))
+  expect_warning(check_ts(ts_y_len, ts_d_len, ts_w_len, ts_comp_d_len))
+  expect_equal(check_ts(ts_y_dup, ts_d_dup, ts_w_dup, ts_comp_d_dup, valid_min, w_min = 0.2, y_min = y_min,
+                        y_max = y_max, approx_spike = F), ts_expect_dup)
 })

@@ -45,7 +45,7 @@
 #' @name check_ts
 #' @export
 #'
-check_ts <- function(y, d, w, valid_min, y_min = 200, y_max = 10000, w_min = 0,
+check_ts <- function(y, d, w, comp_d, valid_min, y_min = 200, y_max = 10000, w_min = 0,
                      approx_spike = TRUE) {
 
   # Input checks
@@ -57,20 +57,23 @@ check_ts <- function(y, d, w, valid_min, y_min = 200, y_max = 10000, w_min = 0,
   w0 <- w
 
   # check if TS has different lengths
-  if (length(d) != N | length(w) != N) {
+  if (length(d) != N | length(w) != N | length(comp_d) != N) {
     warning("TS elements have different lengths. Skipping...")
     return(list(y=rep(NA, N), d=rep(NA, N), w=rep(NA, N)))
   }
 
   # check if TS contains too much missing or bad values
   valids <- y[!is.na(y) & !is.na(d) & !is.na(w) & w != w_min]
-  if (length(valids) / N < valid_min) return(list(y=rep(NA, N), d=rep(NA, N), w=rep(NA, N)))
+  if (length(valids) / N < valid_min) {
+    warning("TS contains too many missing values. Skipping...")
+    return(list(y=rep(NA, N), d=rep(NA, N), w=rep(NA, N)))
+  }
 
   # NA approximation
   # since these values were not actually observed, the corresponding weight is minimal.
   w0[is.na(y) | is.na(w) | is.na(d)] <- w_min
   y0 <- zoo::na.approx(y, na.rm = FALSE)
-  d0 <- zoo::na.approx(d, na.rm = FALSE)
+  d0 <- round(zoo::na.approx(d, na.rm = FALSE))
 
   # Range adjustments
   if (isTRUE(approx_spike)) {
@@ -94,6 +97,11 @@ check_ts <- function(y, d, w, valid_min, y_min = 200, y_max = 10000, w_min = 0,
   duplic <- duplicated(d0)
   y0 <- y0[!duplic]
   d0 <- d0[!duplic]
+  w0 <- w0[!duplic]
+  comp_d <- comp_d[!duplic]
 
-  return(list(y=y0, d=d0, w=w0))
+  # doy to date conversion
+  dates <- get_real_dates(d0, comp_d)
+
+  return(list(y=y0, d=dates, w=w0))
 }
