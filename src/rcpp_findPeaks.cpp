@@ -1,6 +1,19 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
+// Helper function to reverse the order of an vector for correct return to R.
+//
+// Reference: Eddelbuettel, D. (2012): Reversing a Vector. Rcpp Gallery.
+//            https://gallery.rcpp.org/articles/reversing-a-vector/
+//
+// [[Rcpp::export]]
+NumericVector rcpp_vecRev(NumericVector x) {
+  NumericVector revX = clone<NumericVector>(x);
+  std::reverse(revX.begin(), revX.end());
+  ::Rf_copyMostAttrib(x, revX);
+  return revX;
+}
+
 // Helper function to return the sign of a given real value double.
 // Modified from caseyk at StackExcnange:
 // https://stats.stackexchange.com/a/230124
@@ -30,7 +43,7 @@ NumericVector rcpp_findPeaks(NumericVector x, int m = 3) {
 
   bool isGreatest = true;
 
-  NumericVector r(1);
+  NumericVector ret(1);
   int foundMax = 0;
 
   for (int i = 0; i < (size - 2); ++i) {
@@ -44,16 +57,16 @@ NumericVector rcpp_findPeaks(NumericVector x, int m = 3) {
         rb = (size - 3);
       }
       for (int j = lb; j < rb; ++j) {
-        if (x(j) > x(j + 1)) {
+        if (x(j) > x(i + 1)) {
           isGreatest = false;
         }
       }
 
       if (isGreatest) {
         if (foundMax > 0) {
-          r.insert(0, double(i + 2));
+          ret.insert(0, double(i + 2));
         } else {
-          r(0) = double(i + 2);
+          ret(0) = double(i + 2);
         }
         foundMax++;
       } else {
@@ -62,5 +75,7 @@ NumericVector rcpp_findPeaks(NumericVector x, int m = 3) {
     }
   }
 
-  return r;
+  ret = rcpp_vecRev(ret);
+
+  return ret;
 }

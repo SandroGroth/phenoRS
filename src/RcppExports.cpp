@@ -5,6 +5,17 @@
 
 using namespace Rcpp;
 
+// rcpp_vecRev
+NumericVector rcpp_vecRev(NumericVector x);
+RcppExport SEXP _phenoRS_rcpp_vecRev(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_vecRev(x));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rcpp_signDouble
 double rcpp_signDouble(double x);
 RcppExport SEXP _phenoRS_rcpp_signDouble(SEXP xSEXP) {
@@ -61,6 +72,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_phenoRS_rcpp_vecRev", (DL_FUNC) &_phenoRS_rcpp_vecRev, 1},
     {"_phenoRS_rcpp_signDouble", (DL_FUNC) &_phenoRS_rcpp_signDouble, 1},
     {"_phenoRS_rcpp_findPeaks", (DL_FUNC) &_phenoRS_rcpp_findPeaks, 2},
     {"_phenoRS_rcpp_spikeMedian", (DL_FUNC) &_phenoRS_rcpp_spikeMedian, 5},
