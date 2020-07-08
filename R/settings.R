@@ -20,7 +20,10 @@ create_settings <- function(
   n_val_per_year   = 23,         # positive integer
   internal_min     = -999,       # integer
   max_data_gap     = 3,          # positive integer
+  minimal_valid    = 0.5,        # 0 - 1
+  approx_spikes    = TRUE,       # TRUE, FALSE
   use_qa           = TRUE,       # TRUE, FALSE
+  use_real_doy     = FALSE,      # TRUE, FALSE, only modis composite
   valid_min        = 0,          # 0 - 10,000
   valid_max        = 10000,      # 0 - 10,000, greater than valid_min
   weight_min       = 0,          # > 0, lower than w_med and w_max
@@ -29,7 +32,8 @@ create_settings <- function(
   amplitude_cutoff = 0,          # 0 - 10,000, 0 means all data processed
   spike_method     = "STL_w",    # "STL_w", "STL", "Median", "None"
   spike_value      = 2,          # when spike_method "Median"
-  stl_stiffness    = 3           # 1.0 - 10.0
+  stl_stiffness    = 3,          # 1.0 - 10.0
+  seasons_per_year = 1
 ) {
 
   # ---- Input Checks ----
@@ -61,9 +65,12 @@ create_settings <- function(
     ),
     general = list(
       internal_min = internal_min,
-      max_data_gap = max_data_gap
+      max_data_gap = max_data_gap,
+      minimal_valid = minimal_valid,
+      approx_spikes = approx_spikes
     ),
     use_qa = use_qa,
+    use_real_doy = use_real_doy,
     value_range = list(
       valid_min = valid_min,
       valid_max = valid_max
@@ -78,6 +85,9 @@ create_settings <- function(
       spike_method = spike_method,
       spike_value = spike_value,
       stl_stiffness = stl_stiffness,
+    ),
+    seasons = list(
+      seasons_per_year = seasons_per_year
     )
   )
 }
@@ -85,3 +95,5 @@ create_settings <- function(
 load_settings <- function(in_file) {}
 
 save_settings <- function(settings, out_file) {}
+
+check_settings <- function(settings) {}
