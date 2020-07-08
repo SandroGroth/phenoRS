@@ -67,6 +67,10 @@
   )
 }
 
+.get_prep_doys <- function(files, pos1=5, pos2=7) {
+  return(as.numeric(substr(basename(files), pos1, pos2)))
+}
+
 .get_prep_year_str <- function(files, pos1 = 1, pos2 = 4) {
   return(as.numeric(substr(basename(files), pos1, pos2)))
 }
