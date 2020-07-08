@@ -10,7 +10,10 @@ create_settings(
   n_val_per_year = 23,
   internal_min = -999,
   max_data_gap = 3,
+  minimal_valid = 0.5,
+  approx_spikes = TRUE,
   use_qa = TRUE,
+  use_real_doy = FALSE,
   valid_min = 0,
   valid_max = 10000,
   weight_min = 0,
@@ -19,7 +22,8 @@ create_settings(
   amplitude_cutoff = 0,
   spike_method = "STL_w",
   spike_value = 2,
-  stl_stiffness = 3
+  stl_stiffness = 3,
+  seasons_per_year = 1
 )
 }
 \arguments{

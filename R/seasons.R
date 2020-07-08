@@ -68,6 +68,7 @@ divide_seasons <- function(y, d, w, s_per_year = 1, amplitude_cutoff = 2000) {
   }
 
   corrected <- .cut_incomplete_seasons(y0, d0, w, mins)
+  corrected$maxs <- maxs
 
   return (corrected)
 }
