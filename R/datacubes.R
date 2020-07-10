@@ -7,13 +7,13 @@
 #'
 #' @export
 #'
-build_cube <- function(files, xml_files) {
+build_cube <- function(files, xml_files, settings) {
 
   # Input checks
   if (!identical(length(files), length(xml_files))) stop("Number of raster files and metadata files not equal.")
 
   # check metadata
-  meta <- .check_bin_metadata(xml_files)
+  meta <- .check_bin_metadata(xml_files, settings)
 
   dc <- brick(sapply(files, function(x) {
     r <- raster(x)
@@ -27,21 +27,34 @@ build_cube <- function(files, xml_files) {
   return(dc)
 }
 
-.check_bin_metadata <- function(xml_files) {
+#' Check metadata of binary ENVI images.
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.check_bin_metadata <- function(xml_files, settings) {
 
   # Read xml files
   xmls <- lapply(xml_files, xml2::read_xml)
 
   # Check if all images have the same extent
-  lines <- unlist(lapply(xmls, function(x) {xml2::xml_integer(xml2::xml_find_all(x, ".//MDI[@key='lines']"))}))
-  samples <- unlist(lapply(xmls, function(x) {xml2::xml_integer(xml2::xml_find_all(x, ".//MDI[@key='samples']"))}))
+  lines <- unlist(lapply(xmls, function(x) {
+    xml2::xml_integer(xml2::xml_find_all(x, ".//MDI[@key='lines']"))
+  }))
+  samples <- unlist(lapply(xmls, function(x) {
+    xml2::xml_integer(xml2::xml_find_all(x, ".//MDI[@key='samples']"))
+  }))
   if (!length(unique(lines)) == 1 | !length(unique(samples)) == 1) {stop("Image sizes are differing.")}
 
-  # Check if the data has datatype 'UInt16'
-  dtype <- unlist(lapply(xmls, function(x) {xml2::xml_integer(xml2::xml_find_all(x, ".//MDI[@key='data_type']"))}))
-  if (!all(dtype == 12)) stop("Not all datatypes are UInt16")
+  # Check if the data has the specified datatype
+  dtype <- unique(unlist(lapply(xmls, function(x) {
+    xml2::xml_text(xml2::xml_find_all(x, ".//MDI[@key='data_type']"))
+  })))
+  if (length(dtype) > 1) stop("Images data types are differing.")
+  if (!.dtype_ENVI_to_R(dtype) == settings$images$data_type) stop("Not all datatypes are as expected.")
 
-  # Check if 1 bands are available
+  # Check if 1 band is available
   bands <- unlist(lapply(xmls, function(x) {xml2::xml_integer(xml2::xml_find_all(x, ".//MDI[@key='bands']"))}))
   if (!all(bands == 1)) stop("Some images have more than band.")
 
