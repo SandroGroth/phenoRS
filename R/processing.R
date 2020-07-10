@@ -39,6 +39,7 @@ process_single <- function(vi, doy, qa, comp_d, settings) {
   maxs <- seas$maxs
 
   # FITTING
+  fits <- fit_ts(y, d, w, mins, maxs, settings)
 
   # PHENOPARAMS
 
@@ -57,14 +58,14 @@ process_full <- function(in_dir, out_dir, settings, do_par = FALSE, cores = NA, 
   # load metadata
   meta_vi_f <- list.files(in_dir, pattern = '.*_(NDVI|EVI)_.*.aux.xml', full.names = T, no.. = T)
   if (length(meta_vi_f) > 1) {
-    loginfo(paste0("Found ", length(meta_vi_f)), " VI image metadata files.")
+    loginfo(paste0("Found ", length(meta_vi_f), " VI image metadata files."))
   } else stop("No VI image metadata found in directory.")
 
   meta_doy_f <- NULL
   if (isTRUE(settings$use_real_doy)) {
     meta_doy_f <- list.files(in_dir, pattern = '.*_DOY_.*.aux.xml', full.names = T, no.. = T)
     if (length(meta_doy_f) > 1) {
-      loginfo(paste0("Found ", length(meta_doy_f)), " DOY image metadata files.")
+      loginfo(paste0("Found ", length(meta_doy_f), " DOY image metadata files."))
     } else stop("No DOY image metadata found in directory.")
   }
 
@@ -72,7 +73,7 @@ process_full <- function(in_dir, out_dir, settings, do_par = FALSE, cores = NA, 
   if (isTRUE(settings$use_qa)) {
     meta_qa_f <- list.files(in_dir, pattern = '.*_QA_.*.aux.xml', full.names = T, no.. = T)
     if (length(meta_qa_f) > 1) {
-      loginfo(paste0("Found "), length(meta_qa_f), " QA image metadata files.")
+      loginfo(paste0("Found ", length(meta_qa_f), " QA image metadata files."))
     } else stop("No QA image metadata found in directory.")
   }
 
@@ -81,13 +82,13 @@ process_full <- function(in_dir, out_dir, settings, do_par = FALSE, cores = NA, 
   if (length(vi_f) > 1) loginfo(paste0("Found ", length(vi_f), " VI images")) else stop("No VI images found.")
 
   doy_f <- NULL
-  if (isTRUE(settigns$use_real_doy)) {
+  if (isTRUE(settings$use_real_doy)) {
     doy_f <- list.files(in_dir, pattern = '.*_DOY_.*.envi$', full.names = T, no.. = T)
     if (length(doy_f) > 1) loginfo(paste0("Found ", length(doy_f), " DOY images")) else stop("No DOY images found.")
   }
 
   qa_f <- NULL
-  if (isTRUE(settigns$use_qa)) {
+  if (isTRUE(settings$use_qa)) {
     qa_f <- list.files(in_dir, pattern = '.*_QA_.*.envi$', full.names = T, no.. = T)
     if (length(qa_f) > 1) loginfo(paste0("Found ", length(qa_f), " QA images")) else stop("No QA images found.")
   }
@@ -102,9 +103,9 @@ process_full <- function(in_dir, out_dir, settings, do_par = FALSE, cores = NA, 
   }
 
   # build datacubes
-  vi_dc <- build_cube(vi_f, meta_vi_f)
-  if (settings$use_real_doy) doy_dc <- build_cube(doy_f, meta_doy_f) else doy_dc <- NULL
-  if (settings$use_qa) qa_dc <- build_cube(qa_f, meta_qa_f) else qa_dc <- NULL
+  vi_dc <- build_cube(vi_f, meta_vi_f, settings)
+  if (settings$use_real_doy) doy_dc <- build_cube(doy_f, meta_doy_f, settings) else doy_dc <- NULL
+  if (settings$use_qa) qa_dc <- build_cube(qa_f, meta_qa_f, settings) else qa_dc <- NULL
 
   # check dimensions
   if (settings$use_real_doy) {
