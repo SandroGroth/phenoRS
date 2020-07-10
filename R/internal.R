@@ -111,6 +111,26 @@
   )
 }
 
+#' Converts ENVI metadata datatype to R data type.
+#'
+#' @references https://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html
+#'
+#' @keywords internal
+#'
+#' @noRd
+#'
+.dtype_ENVI_to_R <- function(dtype) {
+  switch(dtype,
+    '2'  = 'INT2S',
+    '3'  = 'INT4S',
+    '4'  = 'FLT4S',
+    '5'  = 'FLT8S',
+    '12' = 'INT2U',
+    '13' = 'INT4U',
+    stop("No valid datatype provided.")
+  )
+}
+
 #' Setup progress bar
 #'
 #' @keywords internal
