@@ -51,7 +51,7 @@ create_settings <- function(
   if(!is.numeric(stl_stiffness))    stop("stl_stiffness must be numeric.")
 
   # value checks
-  if(!(data_type %in% c('Int16', 'UInt16', 'Int32', 'Float32'))) stop("Unsupported data type.")
+  if(!(data_type %in% c('INT2S', 'INT2U', 'INT4S', 'INT4U'))) stop("Unsupported data type.")
   if(any(c(weight_min, weight_med, weight_max) < 0)) stop("weights must be 0 or positive.")
   if(weight_min > weight_med) stop("weight_min must be lower than weight_med.")
   if(weight_med > weight_max) stop("weight_med must be lower than weigth_max.")
@@ -84,7 +84,7 @@ create_settings <- function(
     spike = list(
       spike_method = spike_method,
       spike_value = spike_value,
-      stl_stiffness = stl_stiffness,
+      stl_stiffness = stl_stiffness
     ),
     seasons = list(
       seasons_per_year = seasons_per_year
